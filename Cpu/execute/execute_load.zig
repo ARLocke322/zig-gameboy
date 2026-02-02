@@ -1,6 +1,7 @@
 const std = @import("std");
 const Cpu = @import("../cpu.zig").Cpu;
-const Register = @import("../cpu.zig").Register;
+const Register = @import("../register.zig").Register;
+const set_HC_flags = @import("../helpers.zig").set_HC_flags;
 
 // Copy (aka Load) the value in register on the right into the register on the
 // left.
@@ -149,18 +150,9 @@ pub fn execute_LD_n16_SP(cpu: *Cpu, addr: u16) void {
 // Add the signed value e8 to SP and copy the result in HL.
 pub fn execute_LD_HL_SP_plus_e8(cpu: *Cpu, e8: i8) void {
     const sp = cpu.SP.getHiLo();
-
     const result: u16 = @bitCast(@as(i16, sp) + @as(i16, e8));
-
-    const sp_lo: u8 = @truncate(sp);
-    const e8_u: u8 = @bitCast(e8);
-
-    const h = ((sp_lo & 0x0F) + (e8_u & 0x0F)) > 0x0F;
-    const c = ((sp_lo & 0xFF) + (e8_u & 0xFF)) > 0xFF;
-
     cpu.HL.set(result);
-    cpu.set_c(c);
-    cpu.set_h(h);
+    set_HC_flags(cpu, @truncate(sp), @bitCast(e8));
 }
 
 // Copy register HL into register SP.
