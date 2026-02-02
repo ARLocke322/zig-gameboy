@@ -95,6 +95,12 @@ pub const Cpu = struct {
         }
     }
 
+    pub fn get_r8(self: *Cpu, index: u2) *Register {
+        return switch(index) {
+            0 => 
+        }
+    }
+
     pub fn get_r16(self: *Cpu, index: u2) *Register {
         return switch (index) {
             0 => &self.BC,
