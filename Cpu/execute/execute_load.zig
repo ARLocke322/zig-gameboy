@@ -16,8 +16,8 @@ pub fn execute_LD_r8_r8(
 }
 
 // Copy the value n8 into register r8.
-pub fn execute_LD_r8_n8(r: *Register, val: u8) void {
-    r.set(val);
+pub fn execute_LD_r8_n8(r: *Register, isHi: bool, val: u8) void {
+    if (isHi) r.setHi(val) else r.setLo(val);
 }
 
 // Copy the value n16 into register r16.

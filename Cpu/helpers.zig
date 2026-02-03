@@ -60,3 +60,34 @@ pub fn set_Z_flag(
 ) void {
     cpu.set_Z(result == 0);
 }
+
+pub fn get_r8(cpu: *Cpu, index: u2) struct { reg: *Register, isHi: bool, isHL: bool } {
+    return switch (index) {
+        0 => .{ &cpu.BC, true, false },
+        1 => .{ &cpu.BC, false, false },
+        2 => .{ &cpu.DE, true, false },
+        3 => .{ &cpu.DE, false, false },
+        4 => .{ &cpu.HL, true, false },
+        5 => .{ &cpu.HL, false, false },
+        6 => .{ &cpu.HL, false, true },
+        7 => .{ &cpu.AF, true, false },
+    };
+}
+
+pub fn get_r16(cpu: *Cpu, index: u2) *Register {
+    return switch (index) {
+        0 => &cpu.BC,
+        1 => &cpu.DE,
+        2 => &cpu.HL,
+        3 => &cpu.SP,
+        else => {},
+    };
+}
+pub fn get_r16mem(cpu: *Cpu, index: u2) struct { reg: *Register, inc: bool, dec: bool } {
+    return switch (index) {
+        0 => .{ &cpu.BC, false, false },
+        1 => .{ &cpu.DE, false, false },
+        2 => .{ &cpu.HL, true, false },
+        3 => .{ &cpu.HL, false, true },
+    };
+}
