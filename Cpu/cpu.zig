@@ -1,42 +1,5 @@
-pub const Register = struct {
-    value: u16,
-
-    pub fn init(val: u16) Register {
-        return Register{ .value = val };
-    }
-
-    pub fn getHi(self: Register) u8 {
-        return @truncate(self.value >> 8);
-    }
-
-    pub fn getLo(self: Register) u8 {
-        return @truncate(self.value);
-    }
-
-    pub fn getHiLo(self: Register) u16 {
-        return self.value;
-    }
-
-    pub fn setHi(self: *Register, val: u8) void {
-        self.value = val << 8 | (self.value & 0xFF);
-    }
-
-    pub fn setLo(self: *Register, val: u8) void {
-        self.value = (self.value & 0xFF00) | val;
-    }
-
-    pub fn set(self: *Register, val: u16) void {
-        self.value = val;
-    }
-
-    pub fn inc(self: *Register) void {
-        self.value += 1;
-    }
-
-    pub fn dec(self: *Register) void {
-        self.value -= 1;
-    }
-};
+const x_ld = @import("./execute/execute_load.zig");
+const Register = @import("./register.zig");
 
 pub const Cpu = struct {
     AF: Register,
@@ -57,11 +20,45 @@ pub const Cpu = struct {
         };
     }
 
-    pub fn decode_execute(self: *Cpu) void {
-        const instruction = self.pc_pop_8();
+    pub fn fetch(self: *Cpu) u8 {
+        return self.pc_pop_8();
+    }
+
+    pub fn decode_execute(self: *Cpu, instruction: u8) void {
+        const bits_4_5: u2 = @truncate(instruction >> 4);
         switch (instruction) {
             0x00 => {},
-            0x11, 0x21, 0x31 => {},
+            0x11, 0x21, 0x31 => x_ld.execute_LD_r16_n16(
+                self,
+                self.get_r16(bits_4_5),
+                self.pc_pop_16,
+            ),
+            0x12, 0x22, 0x32 => {
+                const opts = self.get_r16mem(bits_4_5);
+                if (opts.inc) {
+                    x_ld.execute_LDH_HLI_A(self);
+                } else if (opts.dec) {
+                    x_ld.execute_LDH_HLD_A(self);
+                } else x_ld.execute_LD_r16_A(
+                    self,
+                    opts.reg,
+                );
+            },
+            0x1A, 0x2A, 0x3A => {
+                const opts = self.get_r16mem(bits_4_5);
+                if (opts.inc) {
+                    x_ld.execute_LD_A_HLI(self);
+                } else if (opts.dec) {
+                    x_ld.execute_LD_A_HLD(self);
+                } else x_ld.execute_LD_A_r16(
+                    self,
+                    opts.reg,
+                );
+            },
+            0x8 => x_ld.execute_LD_n16_SP(
+                self,
+                pc_pop_16(),
+            ),
             else => {},
         }
     }
@@ -83,18 +80,61 @@ pub const Cpu = struct {
     pub fn set_c(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
-            self.AF.setLo(current | 0x1);
+            self.AF.setLo(current | 0x8);
         } else {
-            self.AF.setLo(current & ~@as(u8, 0x1));
+            self.AF.setLo(current & ~@as(u8, 0x8));
         }
     }
 
     pub fn set_h(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
-            self.AF.setLo(current | 0x2);
+            self.AF.setLo(current | 0x10);
         } else {
-            self.AF.setLo(current & ~@as(u8, 0x2));
+            self.AF.setLo(current & ~@as(u8, 0x10));
         }
+    }
+
+    pub fn set_n(self: *Cpu, flag: bool) void {
+        const current: u8 = self.AF.getLo();
+        if (flag) {
+            self.AF.setLo(current | 0x20);
+        } else {
+            self.AF.setLo(current & ~@as(u8, 0x20));
+        }
+    }
+
+    pub fn set_z(self: *Cpu, flag: bool) void {
+        const current: u8 = self.AF.getLo();
+        if (flag) {
+            self.AF.setLo(current | 0x40);
+        } else {
+            self.AF.setLo(current & ~@as(u8, 0x40));
+        }
+    }
+
+    pub fn get_r8(self: *Cpu, index: u2) *Register {
+        return switch (index) {
+            0 => {},
+            else => {},
+        };
+    }
+
+    pub fn get_r16(self: *Cpu, index: u2) *Register {
+        return switch (index) {
+            0 => &self.BC,
+            1 => &self.DE,
+            2 => &self.HL,
+            3 => &self.SP,
+            else => {},
+        };
+    }
+    pub fn get_r16mem(self: *Cpu, index: u2) struct { reg: *Register, inc: bool, dec: bool } {
+        return switch (index) {
+            0 => .{ &self.BC, false, false },
+            1 => .{ &self.DE, false, false },
+            2 => .{ &self.HL, true, false },
+            3 => .{ &self.HL, false, true },
+        };
     }
 };
