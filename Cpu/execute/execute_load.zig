@@ -1,7 +1,7 @@
 const std = @import("std");
 const Cpu = @import("../cpu.zig").Cpu;
 const Register = @import("../register.zig").Register;
-const set_HC_flags = @import("../helpers.zig").set_HC_flags;
+const set_NHC_FLAGS_r8_ADD = @import("../helpers.zig").set_NHC_flags_r8_ADD;
 
 // Copy (aka Load) the value in register on the right into the register on the
 // left.
@@ -152,7 +152,7 @@ pub fn execute_LD_HL_SP_plus_e8(cpu: *Cpu, e8: i8) void {
     const sp = cpu.SP.getHiLo();
     const result: u16 = @bitCast(@as(i16, sp) + @as(i16, e8));
     cpu.HL.set(result);
-    set_HC_flags(cpu, @truncate(sp), @bitCast(e8));
+    set_NHC_FLAGS_r8_ADD(cpu, @truncate(sp), @bitCast(e8));
 }
 
 // Copy register HL into register SP.

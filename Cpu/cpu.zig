@@ -80,25 +80,44 @@ pub const Cpu = struct {
     pub fn set_c(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
-            self.AF.setLo(current | 0x1);
+            self.AF.setLo(current | 0x8);
         } else {
-            self.AF.setLo(current & ~@as(u8, 0x1));
+            self.AF.setLo(current & ~@as(u8, 0x8));
         }
     }
 
     pub fn set_h(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
-            self.AF.setLo(current | 0x2);
+            self.AF.setLo(current | 0x10);
         } else {
-            self.AF.setLo(current & ~@as(u8, 0x2));
+            self.AF.setLo(current & ~@as(u8, 0x10));
+        }
+    }
+
+    pub fn set_n(self: *Cpu, flag: bool) void {
+        const current: u8 = self.AF.getLo();
+        if (flag) {
+            self.AF.setLo(current | 0x20);
+        } else {
+            self.AF.setLo(current & ~@as(u8, 0x20));
+        }
+    }
+
+    pub fn set_z(self: *Cpu, flag: bool) void {
+        const current: u8 = self.AF.getLo();
+        if (flag) {
+            self.AF.setLo(current | 0x40);
+        } else {
+            self.AF.setLo(current & ~@as(u8, 0x40));
         }
     }
 
     pub fn get_r8(self: *Cpu, index: u2) *Register {
-        return switch(index) {
-            0 => 
-        }
+        return switch (index) {
+            0 => {},
+            else => {},
+        };
     }
 
     pub fn get_r16(self: *Cpu, index: u2) *Register {
