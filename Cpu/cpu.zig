@@ -81,6 +81,10 @@ pub const Cpu = struct {
         }
     }
 
+    pub fn get_c(self: *Cpu) u1 {
+        return @truncate((self.AF.getLo() & 0x10) >> 4);
+    }
+
     pub fn set_h(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
