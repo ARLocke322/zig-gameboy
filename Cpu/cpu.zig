@@ -1,5 +1,8 @@
 const x_ld = @import("./execute/execute_load.zig");
+const x_ar = @import("./execute/execute_arithmetic.zig");
 const Register = @import("./register.zig");
+const d_ld = @import("./decode/decode_load.zig");
+const d_ar = @import("./decode/decode_arithmetic.zig");
 
 pub const Cpu = struct {
     AF: Register,
@@ -25,54 +28,46 @@ pub const Cpu = struct {
     }
 
     pub fn decode_execute(self: *Cpu, instruction: u8) void {
+        switch (instruction & 0xC0) {
+            0x00 => self.decode_block_0(instruction),
+            0x40 => self.decode_block_1(instruction),
+            0x80 => self.decode_block_2(instruction),
+            0xC0 => self.decode_block_3(instruction),
+        }
+    }
+
+    pub fn decode_block_0(self: *Cpu, instruction: u8) void {
+        const opcode: u4 = @truncate(instruction);
         const bits_4_5: u2 = @truncate(instruction >> 4);
-        switch (instruction) {
-            0x00 => {},
-            0x11, 0x21, 0x31 => x_ld.execute_LD_r16_n16(
-                self,
-                self.get_r16(bits_4_5),
-                self.pc_pop_16,
-            ),
-            0x12, 0x22, 0x32 => {
-                const opts = self.get_r16mem(bits_4_5);
-                if (opts.inc) {
-                    x_ld.execute_LDH_HLI_A(self);
-                } else if (opts.dec) {
-                    x_ld.execute_LDH_HLD_A(self);
-                } else x_ld.execute_LD_r16_A(
-                    self,
-                    opts.reg,
-                );
+        const bits_3_4_5: u3 = @truncate(instruction >> 3);
+        switch (opcode) {
+            0x0 => {},
+            0x1 => d_ld.decode_LD_r16_n16(self, bits_4_5),
+            0x2 => d_ld.decode_LD_r16_A(self, bits_4_5),
+            0xA => d_ld.decode_LD_A_r16(self, bits_4_5),
+            0x8 => {
+                if (bits_4_5 == 0x00) d_ld.decode_LD_n16_SP(self, bits_4_5);
+                // jr if 11
             },
-            0x1A, 0x2A, 0x3A => {
-                const opts = self.get_r16mem(bits_4_5);
-                if (opts.inc) {
-                    x_ld.execute_LD_A_HLI(self);
-                } else if (opts.dec) {
-                    x_ld.execute_LD_A_HLD(self);
-                } else x_ld.execute_LD_A_r16(
-                    self,
-                    opts.reg,
-                );
-            },
-            0x8 => x_ld.execute_LD_n16_SP(
-                self,
-                pc_pop_16(),
-            ),
-            else => {},
+            0x3 => d_ar.decode_INC_r16(self, bits_4_5),
+            0xB => d_ar.decode_DEC_r16(self, bits_4_5),
+            0x9 => d_ar.decode_ADD_HL_r16(self, bits_4_5),
+            0x4, 0xC => d_ar.decode_INC_r8(self, bits_3_4_5),
+            0x5, 0xD => d_ar.decode_DEC_r8(self, bits_3_4_5),
+            0x6, 0xE => d_ld.decode_LD_r8_n8(self, bits_3_4_5),
         }
     }
 
     pub fn pc_pop_16(self: *Cpu) u16 {
-        const b1: u8 = Memory.read8(self.PC.getHiLo());
+        const b1: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.inc();
-        const b2: u8 = Memory.read8(self.PC.HiLo());
+        const b2: u8 = self.mem.read8(self.PC.HiLo());
         self.PC.Inc();
         return b2 << 8 | b1;
     }
 
     pub fn pc_pop_8(self: *Cpu) u8 {
-        const b: u8 = Memory.read8(self.PC.getHiLo());
+        const b: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.inc();
         return b;
     }
@@ -111,30 +106,5 @@ pub const Cpu = struct {
         } else {
             self.AF.setLo(current & ~@as(u8, 0x40));
         }
-    }
-
-    pub fn get_r8(self: *Cpu, index: u2) *Register {
-        return switch (index) {
-            0 => {},
-            else => {},
-        };
-    }
-
-    pub fn get_r16(self: *Cpu, index: u2) *Register {
-        return switch (index) {
-            0 => &self.BC,
-            1 => &self.DE,
-            2 => &self.HL,
-            3 => &self.SP,
-            else => {},
-        };
-    }
-    pub fn get_r16mem(self: *Cpu, index: u2) struct { reg: *Register, inc: bool, dec: bool } {
-        return switch (index) {
-            0 => .{ &self.BC, false, false },
-            1 => .{ &self.DE, false, false },
-            2 => .{ &self.HL, true, false },
-            3 => .{ &self.HL, false, true },
-        };
     }
 };
