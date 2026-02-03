@@ -1,9 +1,6 @@
-const std = @import("std");
 const Cpu = @import("../cpu.zig").Cpu;
 const Register = @import("../register.zig").Register;
 const set_NHC_flags_r8_SHIFT = @import("../helpers.zig").set_NHC_flags_r8_SHIFT;
-const set_NHC_flags_r16_ADD = @import("../helpers.zig").set_NHC_flags_r16_ADD;
-const set_NHC_flags_r16_SUB = @import("../helpers.zig").set_NHC_flags_r16_SUB;
 const set_Z_flag = @import("../helpers.zig").set_Z_flag;
 
 // Rotate bits in register r8 left, through the carry flag.
