@@ -143,9 +143,7 @@ pub fn execute_RRC_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
 }
 
 // Rotate the byte pointed to by HL right.
-pub fn execute_RRC_HL(
-    cpu: *Cpu,
-) void {
+pub fn execute_RRC_HL(cpu: *Cpu) void {
     const addr = cpu.HL.getHiLo();
     const current: u8 = cpu.mem.read8(addr);
     const new_carry: u1 = @truncate(current);
