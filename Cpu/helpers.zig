@@ -44,6 +44,13 @@ pub fn set_NHC_flags_r16_SUB(cpu: *Cpu, op1: u16, op2: u16) void {
     cpu.set_n(true);
 }
 
+pub fn set_NHCZ_flags_logic(cpu: *Cpu, result: u8, h: bool) void {
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(h);
+    cpu.set_c(false);
+}
+
 pub fn set_Z_flag(
     cpu: *Cpu,
     result: u16,

@@ -1,6 +1,7 @@
 const x_ld = @import("./execute/execute_load.zig");
 const x_ar = @import("./execute/execute_arithmetic.zig");
 const x_bs = @import("./execute/execute_bit_shift.zig");
+const x_bl = @import("./execute/execute_bitwise_logic.zig");
 const x_cf = @import("./execute/execute_carry_flag.zig");
 const Register = @import("./register.zig");
 const d_ld = @import("./decode/decode_load.zig");
@@ -68,7 +69,7 @@ pub const Cpu = struct {
                     0x2 => x_bs.execute_RLA(self),
                     0x3 => x_bs.execute_RRA(self),
                     0x4 => {},
-                    0x5 => {},
+                    0x5 => x_bl.execute_CPL(self),
                     0x6 => x_cf.execute_SCF(self),
                     0x7 => x_cf.execute_CCF(self),
                 }
