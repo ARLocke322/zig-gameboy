@@ -58,7 +58,7 @@ pub fn set_Z_flag(
     cpu.set_Z(result == 0);
 }
 
-pub fn get_r8(cpu: *Cpu, index: u2) struct {
+pub fn get_r8(cpu: *Cpu, index: u3) struct {
     reg: *Register,
     isHi: bool,
     isHL: bool,
