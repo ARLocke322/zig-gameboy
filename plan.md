@@ -2,7 +2,7 @@
 
 ## To Do
 
-- [ ] Bitwise logic instructions (10)
+- [x] Bitwise logic instructions (10)
 - [ ] Bit flag instructions (6)
 - [ ] Jumps and subroutine instructions (11)
 - [ ] Stack manipulation instructions (12)

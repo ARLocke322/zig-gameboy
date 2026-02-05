@@ -49,3 +49,17 @@ pub fn decode_LD_r8_n8(cpu: *Cpu, register_number: u3) void {
         x_ld.execute_LD_HL_n8(cpu, n8);
     } else x_ld.execute_LD_r8_n8(opts.reg, opts.isHi, n8);
 }
+
+pub fn decode_XOR_A_r8(cpu: *Cpu, register_number: u3) void {
+    const opts = helpers.get_r8(cpu, register_number);
+    if (opts.isHL) {
+        x_bl.execute_XOR_A_HL(cpu);
+    } else x_bl.execute_XOR_A_r8(cpu, opts.reg, opts.isHi);
+}
+
+pub fn decode_OR_A_r8(cpu: *Cpu, register_number: u3) void {
+    const opts = helpers.get_r8(cpu, register_number);
+    if (opts.isHL) {
+        x_bl.execute_OR_A_HL(cpu);
+    } else x_bl.execute_OR_A_r8(cpu, opts.reg, opts.isHi);
+}
