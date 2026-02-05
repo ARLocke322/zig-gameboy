@@ -1,7 +1,15 @@
 const x_ld = @import("../execute/execute_load.zig");
+const x_bl = @import("../execute/execute_bitwise_logic.zig");
 const Cpu = @import("../cpu.zig").Cpu;
 const Register = @import("../register.zig").Register;
 const helpers = @import("../helpers.zig");
+
+pub fn decode_AND_A_r8(cpu: *Cpu, register_number: u3) void {
+    const opts = helpers.get_r8(cpu, register_number);
+    if (opts.isHL) {
+        x_bl.execute_AND_A_HL(cpu);
+    } else x_bl.execute_AND_A_r8(cpu, opts.reg, opts.isHi);
+}
 
 pub fn decode_LD_r16_n16(cpu: *Cpu, register_number: u2) void {
     const register: Register = helpers.get_r16(cpu, register_number);
@@ -42,21 +50,16 @@ pub fn decode_LD_r8_n8(cpu: *Cpu, register_number: u3) void {
     } else x_ld.execute_LD_r8_n8(opts.reg, opts.isHi, n8);
 }
 
-pub fn decode_LD_r8_r8(cpu: *Cpu, register_number_1: u3, register_number_2: u3) void {
-    const opts1 = helpers.get_r8(cpu, register_number_1);
-    const opts2 = helpers.get_r8(cpu, register_number_2);
-    if (opts1.isHL and opts2.isHL) {
-        //halt
-    } else if (!opts1.isHL and opts2.isHL) {
-        x_ld.execute_LD_r8_HL(cpu, opts1.reg, opts1.isHi);
-    } else if (opts1.isHL and !opts2.isHL) {
-        x_ld.execute_LD_HL_r8(cpu, opts2.reg, opts2.isHi);
-    } else {
-        x_ld.execute_LD_r8_r8(
-            opts1.reg,
-            opts2.reg,
-            opts1.isHi,
-            opts2.isHi,
-        );
-    }
+pub fn decode_XOR_A_r8(cpu: *Cpu, register_number: u3) void {
+    const opts = helpers.get_r8(cpu, register_number);
+    if (opts.isHL) {
+        x_bl.execute_XOR_A_HL(cpu);
+    } else x_bl.execute_XOR_A_r8(cpu, opts.reg, opts.isHi);
+}
+
+pub fn decode_OR_A_r8(cpu: *Cpu, register_number: u3) void {
+    const opts = helpers.get_r8(cpu, register_number);
+    if (opts.isHL) {
+        x_bl.execute_OR_A_HL(cpu);
+    } else x_bl.execute_OR_A_r8(cpu, opts.reg, opts.isHi);
 }

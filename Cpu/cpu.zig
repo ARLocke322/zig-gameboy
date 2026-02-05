@@ -7,6 +7,7 @@ const Register = @import("./register.zig");
 const d_ld = @import("./decode/decode_load.zig");
 const d_ar = @import("./decode/decode_arithmetic.zig");
 const d_bs = @import("./decode/decode_bit_shift.zig");
+const d_bl = @import("./decode/decode_bitwise_logic.zig");
 
 pub const Cpu = struct {
     AF: Register,
@@ -74,6 +75,27 @@ pub const Cpu = struct {
                     0x7 => x_cf.execute_CCF(self),
                 }
             },
+        }
+    }
+
+    pub fn decode_block_1(self: *Cpu, instruction: u8) void {
+        const bits_3_4_5: u3 = @truncate(instruction >> 3);
+        const bits_0_1_2: u3 = @truncate(instruction);
+        d_ld.decode_LD_r8_r8(self, bits_0_1_2, bits_3_4_5);
+    }
+
+    pub fn decode_block_2(self: *Cpu, instruction: u8) void {
+        const operand: u3 = @truncate(instruction);
+        const opcode: u3 = @truncate(instruction >> 3);
+        switch (opcode) {
+            0x0 => d_ar.decode_ADD_A_r8(self, operand),
+            0x1 => d_ar.decode_ADC_A_r8(self, operand),
+            0x2 => d_ar.decode_SUB_A_r8(self, operand),
+            0x3 => d_ar.decode_SBC_A_r8(self, operand),
+            0x4 => d_bl.decode_AND_A_r8(self, operand),
+            0x5 => d_bl.decode_XOR_A_r8(self, operand),
+            0x6 => d_bl.decode_OR_A_r8(self, operand),
+            0x7 => d_ar.decode_CP_A_r8(self, operand),
         }
     }
 
