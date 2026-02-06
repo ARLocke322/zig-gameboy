@@ -18,7 +18,7 @@ pub const Register = struct {
     }
 
     pub fn setHi(self: *Register, val: u8) void {
-        self.value = val << 8 | (self.value & 0xFF);
+        self.value = @as(u16, val) << 8 | (self.value & 0xFF);
     }
 
     pub fn setLo(self: *Register, val: u8) void {

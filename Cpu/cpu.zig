@@ -53,27 +53,30 @@ pub const Cpu = struct {
             0x40 => self.decode_block_1(instruction),
             0x80 => self.decode_block_2(instruction),
             0xC0 => self.decode_block_3(instruction),
+            else => unreachable,
         }
     }
 
     fn decode_block_0(self: *Cpu, instruction: u8) void {
         const opcode: u4 = @truncate(instruction);
         const bits_4_5: u2 = @truncate(instruction >> 4);
+        const bits_3_4: u2 = @truncate(instruction >> 3);
         const bits_3_5: u3 = @truncate(instruction >> 3);
 
         switch (opcode) {
             0x0 => switch (instruction) {
                 0x00 => x_msc.execute_NOP(),
                 0x10 => x_msc.execute_STOP(),
-                0x20, 0x30 => x_js.execute_JR_cc_n16(self, bits_3_5, self.pc_pop_8()),
+                0x20, 0x30 => x_js.execute_JR_cc_n16(self, bits_3_4, self.pc_pop_8()),
+                else => unreachable,
             },
             0x1 => d_ld.decode_LD_r16_n16(self, bits_4_5),
             0x2 => d_ld.decode_LD_r16_A(self, bits_4_5),
             0xA => d_ld.decode_LD_A_r16(self, bits_4_5),
             0x8 => switch (bits_4_5) {
-                0x00 => d_ld.decode_LD_n16_SP(self, self.pc_pop_16()),
+                0x00 => d_sm.decode_LD_n16_SP(self),
                 0x01 => x_js.execute_JR_n16(self, self.pc_pop_8()),
-                0x02, 0x03 => x_js.execute_JR_cc_n16(self, bits_3_5, self.pc_pop_8()),
+                0x02, 0x03 => x_js.execute_JR_cc_n16(self, bits_3_4, self.pc_pop_8()),
             },
             0x3 => d_ar.decode_INC_r16(self, bits_4_5),
             0xB => d_ar.decode_DEC_r16(self, bits_4_5),
@@ -125,7 +128,7 @@ pub const Cpu = struct {
             0x0E => x_ar.execute_ADC_A_n8(self, self.pc_pop_8()),
             0x16 => x_ar.execute_SUB_A_n8(self, self.pc_pop_8()),
             0x1E => x_ar.execute_SBC_A_n8(self, self.pc_pop_8()),
-            0x26 => x_bl.execute_AND_n8(self, self.pc_pop_8()),
+            0x26 => x_bl.execute_AND_A_n8(self, self.pc_pop_8()),
             0x2E => x_bl.execute_XOR_A_n8(self, self.pc_pop_8()),
             0x36 => x_bl.execute_OR_A_n8(self, self.pc_pop_8()),
             0x3E => x_ar.execute_CP_A_n8(self, self.pc_pop_8()),
@@ -138,7 +141,10 @@ pub const Cpu = struct {
             0x29 => x_js.execute_JP_HL(self),
             0x04, 0x0C, 0x14, 0x1C => x_js.execute_CALL_cc_n16(self, bits_3_4, self.pc_pop_16()),
             0x0D => x_js.execute_CALL_n16(self, self.pc_pop_16()),
-            0x07, 0x0F, 0x17, 0x1F, 0x27, 0x2F, 0x37, 0x3F => x_js.execute_RST_vec(self, bits_3_5 << 3),
+            0x07, 0x0F, 0x17, 0x1F, 0x27, 0x2F, 0x37, 0x3F => x_js.execute_RST_vec(
+                self,
+                @as(u8, bits_3_5) << 3,
+            ),
 
             0x01, 0x11, 0x21, 0x31 => d_sm.decode_POP_r16(self, bits_4_5),
             0x05, 0x15, 0x25, 0x35 => d_sm.decode_PUSH_r16(self, bits_4_5),
@@ -158,6 +164,7 @@ pub const Cpu = struct {
 
             0x33 => x_ir.execute_DI(self),
             0x3B => x_ir.execute_EI(self),
+            else => {},
         }
     }
 
@@ -187,7 +194,7 @@ pub const Cpu = struct {
         self.PC.inc();
         const b2: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.inc();
-        return b2 << 8 | b1;
+        return @as(u16, b2) << 8 | b1;
     }
 
     pub fn pc_pop_8(self: *Cpu) u8 {
@@ -201,7 +208,7 @@ pub const Cpu = struct {
         self.SP.inc();
         const b2: u8 = self.mem.read8(self.SP.getHiLo());
         self.SP.inc();
-        return b2 << 8 | b1;
+        return @as(u16, b2) << 8 | b1;
     }
 
     pub fn sp_push_16(self: *Cpu, val: u16) void {

@@ -1,6 +1,6 @@
 const std = @import("std");
-const Cpu = @import("../cpu.zig").Cpu;
-const Register = @import("../cpu.zig").Register;
+const Cpu = @import("cpu.zig").Cpu;
+const Register = @import("register.zig").Register;
 
 pub fn set_NHC_flags_r8_ADD(cpu: *Cpu, op1: u8, op2: u8) void {
     const h = ((op1 & 0x0F) + (op2 & 0x0F)) > 0x0F;
@@ -55,7 +55,7 @@ pub fn set_Z_flag(
     cpu: *Cpu,
     result: u16,
 ) void {
-    cpu.set_Z(result == 0);
+    cpu.set_z(result == 0);
 }
 
 pub fn get_r8(cpu: *Cpu, index: u3) struct {
@@ -64,14 +64,14 @@ pub fn get_r8(cpu: *Cpu, index: u3) struct {
     isHL: bool,
 } {
     return switch (index) {
-        0 => .{ &cpu.BC, true, false },
-        1 => .{ &cpu.BC, false, false },
-        2 => .{ &cpu.DE, true, false },
-        3 => .{ &cpu.DE, false, false },
-        4 => .{ &cpu.HL, true, false },
-        5 => .{ &cpu.HL, false, false },
-        6 => .{ &cpu.HL, false, true },
-        7 => .{ &cpu.AF, true, false },
+        0 => .{ .reg = &cpu.BC, .isHi = true, .isHL = false },
+        1 => .{ .reg = &cpu.BC, .isHi = false, .isHL = false },
+        2 => .{ .reg = &cpu.DE, .isHi = true, .isHL = false },
+        3 => .{ .reg = &cpu.DE, .isHi = false, .isHL = false },
+        4 => .{ .reg = &cpu.HL, .isHi = true, .isHL = false },
+        5 => .{ .reg = &cpu.HL, .isHi = false, .isHL = false },
+        6 => .{ .reg = &cpu.HL, .isHi = false, .isHL = true },
+        7 => .{ .reg = &cpu.AF, .isHi = true, .isHL = false },
     };
 }
 
@@ -81,7 +81,6 @@ pub fn get_r16(cpu: *Cpu, index: u2) *Register {
         1 => &cpu.DE,
         2 => &cpu.HL,
         3 => &cpu.SP,
-        else => {},
     };
 }
 pub fn get_r16mem(cpu: *Cpu, index: u2) struct {
@@ -90,10 +89,10 @@ pub fn get_r16mem(cpu: *Cpu, index: u2) struct {
     dec: bool,
 } {
     return switch (index) {
-        0 => .{ &cpu.BC, false, false },
-        1 => .{ &cpu.DE, false, false },
-        2 => .{ &cpu.HL, true, false },
-        3 => .{ &cpu.HL, false, true },
+        0 => .{ .reg = &cpu.BC, .inc = false, .dec = false },
+        1 => .{ .reg = &cpu.DE, .inc = false, .dec = false },
+        2 => .{ .reg = &cpu.HL, .inc = true, .dec = false },
+        3 => .{ .reg = &cpu.HL, .inc = false, .dec = true },
     };
 }
 

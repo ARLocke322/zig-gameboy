@@ -26,14 +26,14 @@ pub fn execute_LD_r16_n16(r: *Register, val: u16) void {
 }
 
 // Copy the value in register r8 into the byte pointed to by HL.
-pub fn execute_LD_HL_r8(cpu: *Cpu, r: Register, isHi: bool) void {
+pub fn execute_LD_HL_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const val: u8 = if (isHi) r.getHi() else r.getLo();
-    cpu.mem.write8(cpu.HL.HiLo(), val);
+    cpu.mem.write8(cpu.HL.getHiLo(), val);
 }
 
 // Copy the value n8 into the byte pointed to by HL.
 pub fn execute_LD_HL_n8(cpu: *Cpu, val: u8) void {
-    cpu.mem.write8(cpu.HL.HiLo(), val);
+    cpu.mem.write8(cpu.HL.getHiLo(), val);
 }
 
 // Copy the value pointed to by HL into register r8.
@@ -43,9 +43,9 @@ pub fn execute_LD_r8_HL(cpu: *Cpu, r: *Register, isHi: bool) void {
 }
 
 // Copy the value in register A into the byte pointed to by r16.
-pub fn execute_LD_r16_A(cpu: *Cpu, r: Register) void {
+pub fn execute_LD_r16_A(cpu: *Cpu, r: *Register) void {
     const val: u8 = cpu.AF.getHi();
-    cpu.mem.write8(r.HiLo(), val);
+    cpu.mem.write8(r.getHiLo(), val);
 }
 
 // Copy the value in register A into the byte at address n16.
@@ -59,20 +59,20 @@ pub fn execute_LD_n16_A(cpu: *Cpu, addr: u16) void {
 // high byte of $FF, so it must be between $FF00 and $FFFF.
 pub fn execute_LDH_n16_A(cpu: *Cpu, addrLo: u8) void {
     const val: u8 = cpu.AF.getHi();
-    const addr: u16 = 0xFF00 | addrLo;
+    const addr: u16 = 0xFF00 | @as(u16, addrLo);
     cpu.mem.write8(addr, val);
 }
 
 // Copy the value in register A into the byte at address $FF00+C.
 pub fn execute_LDH_C_A(cpu: *Cpu) void {
     const val: u8 = cpu.AF.getHi();
-    const addr: u16 = 0xFF00 | cpu.BC.getLo();
+    const addr: u16 = 0xFF00 | @as(u16, cpu.BC.getLo());
     cpu.mem.write8(addr, val);
 }
 
 // Copy the byte pointed to by r16 into register A.
-pub fn execute_LD_A_r16(cpu: *Cpu, r: Register) void {
-    const val: u8 = cpu.mem.read8(r.HiLo());
+pub fn execute_LD_A_r16(cpu: *Cpu, r: *Register) void {
+    const val: u8 = cpu.mem.read8(r.getHiLo());
     cpu.AF.setHi(val);
 }
 
@@ -86,14 +86,14 @@ pub fn execute_LD_A_n16(cpu: *Cpu, addr: u16) void {
 // The source address n16 is encoded as its 8-bit low byte and assumes a high
 // byte of $FF, so it must be between $FF00 and $FFFF.
 pub fn execute_LDH_A_n16(cpu: *Cpu, addrLo: u8) void {
-    const addr: u16 = 0xFF00 | addrLo;
+    const addr: u16 = 0xFF00 | @as(u16, addrLo);
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
 }
 
 // Copy the byte at address $FF00+C into register A.
 pub fn execute_LDH_A_C(cpu: *Cpu) void {
-    const addr: u16 = 0xFF00 | cpu.BC.getLo();
+    const addr: u16 = 0xFF00 | @as(u16, cpu.BC.getLo());
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
 }
@@ -102,7 +102,7 @@ pub fn execute_LDH_A_C(cpu: *Cpu) void {
 // afterwards.
 pub fn execute_LDH_HLI_A(cpu: *Cpu) void {
     const val: u8 = cpu.AF.getHi();
-    const addr: u16 = cpu.HL.HiLo();
+    const addr: u16 = cpu.HL.getHiLo();
     cpu.mem.write8(addr, val);
     cpu.HL.inc();
 }
@@ -111,7 +111,7 @@ pub fn execute_LDH_HLI_A(cpu: *Cpu) void {
 // afterwards.
 pub fn execute_LDH_HLD_A(cpu: *Cpu) void {
     const val: u8 = cpu.AF.getHi();
-    const addr: u16 = cpu.HL.HiLo();
+    const addr: u16 = cpu.HL.getHiLo();
     cpu.mem.write8(addr, val);
     cpu.HL.dec();
 }
@@ -119,7 +119,7 @@ pub fn execute_LDH_HLD_A(cpu: *Cpu) void {
 // Copy the byte pointed to by HL into register A, and decrement HL
 // afterwards.
 pub fn execute_LD_A_HLD(cpu: *Cpu) void {
-    const addr: u16 = cpu.HL.HiLo();
+    const addr: u16 = cpu.HL.getHiLo();
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
     cpu.HL.dec();
@@ -128,7 +128,7 @@ pub fn execute_LD_A_HLD(cpu: *Cpu) void {
 // Copy the byte pointed to by HL into register A, and decrement HL
 // afterwards.
 pub fn execute_LD_A_HLI(cpu: *Cpu) void {
-    const addr: u16 = cpu.HL.HiLo();
+    const addr: u16 = cpu.HL.getHiLo();
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
     cpu.HL.inc();
