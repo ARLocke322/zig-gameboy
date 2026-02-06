@@ -9,7 +9,7 @@ pub fn execute_RL_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | carry;
+    const result: u8 = @as(u8, current) << 1 | carry;
 
     if (isHi) r.setHi(result) else r.setLo(result);
 
@@ -24,7 +24,7 @@ pub fn execute_RL_HL(cpu: *Cpu) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | carry;
+    const result: u8 = @as(u8, current) << 1 | carry;
 
     cpu.mem.write8(addr, result);
 
@@ -38,7 +38,7 @@ pub fn execute_RLA(cpu: *Cpu) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | carry;
+    const result: u8 = @as(u8, current) << 1 | carry;
 
     cpu.AF.setHi(result);
 
@@ -51,7 +51,7 @@ pub fn execute_RLC_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const current: u8 = if (isHi) r.getHi() else r.getLo();
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | new_carry;
+    const result: u8 = @as(u8, current) << 1 | new_carry;
 
     if (isHi) r.setHi(result) else r.setLo(result);
 
@@ -65,7 +65,7 @@ pub fn execute_RLC_HL(cpu: *Cpu) void {
     const current: u8 = cpu.mem.read8(addr);
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | new_carry;
+    const result: u8 = @as(u8, current) << 1 | new_carry;
 
     cpu.mem.write8(addr, result);
 
@@ -78,7 +78,7 @@ pub fn execute_RLCA(cpu: *Cpu) void {
     const current: u8 = cpu.AF.getHi();
     const new_carry: u1 = @truncate(current >> 7);
 
-    const result: u8 = (current << 1) | new_carry;
+    const result: u8 = @as(u8, current) << 1 | new_carry;
 
     cpu.AF.setHi(result);
 
@@ -92,7 +92,7 @@ pub fn execute_RR_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, carry) << 7 | (current >> 1);
 
     if (isHi) r.setHi(result) else r.setLo(result);
 
@@ -107,7 +107,7 @@ pub fn execute_RR_HL(cpu: *Cpu) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, carry) << 7 | (current >> 1);
 
     cpu.mem.write8(addr, result);
 
@@ -121,7 +121,7 @@ pub fn execute_RRA(cpu: *Cpu) void {
     const carry: u1 = cpu.get_c();
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, carry) << 7 | (current >> 1);
 
     cpu.AF.setHi(result);
 
@@ -134,7 +134,7 @@ pub fn execute_RRC_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const current: u8 = if (isHi) r.getHi() else r.getLo();
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (new_carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, new_carry) << 7 | (current >> 1);
 
     if (isHi) r.setHi(result) else r.setLo(result);
 
@@ -148,7 +148,7 @@ pub fn execute_RRC_HL(cpu: *Cpu) void {
     const current: u8 = cpu.mem.read8(addr);
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (new_carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, new_carry) << 7 | (current >> 1);
 
     cpu.mem.write8(addr, result);
 
@@ -161,7 +161,7 @@ pub fn execute_RRCA(cpu: *Cpu) void {
     const current: u8 = cpu.AF.getHi();
     const new_carry: u1 = @truncate(current);
 
-    const result: u8 = (new_carry << 7) | (current >> 1);
+    const result: u8 = @as(u8, new_carry) << 7 | (current >> 1);
 
     cpu.AF.setHi(result);
 
