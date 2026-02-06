@@ -16,6 +16,7 @@ pub const Cpu = struct {
     HL: Register,
     SP: Register,
     PC: Register,
+    IME: bool,
 
     pub fn init() Cpu {
         return Cpu{
@@ -25,6 +26,7 @@ pub const Cpu = struct {
             .HL = Register.init(0),
             .SP = Register.init(0),
             .PC = Register.init(0),
+            .IME = false,
         };
     }
 
@@ -99,10 +101,34 @@ pub const Cpu = struct {
         }
     }
 
+    pub fn decode_block_3(self: *Cpu, instruction: u8) void {
+        const opcode: u6 = @truncate(instruction >> 3);
+        const bits_3_4_5: u3 = @truncate(instruction >> 3);
+        switch (opcode) {
+            0x1 => {},
+            0x2 => {},
+            0x3 => {},
+            0x4 => {},
+            0x5 => {},
+            0x6 => {
+                switch (bits_3_4_5) {
+                    0x0 => x_ar.execute_ADD_A_n8(self, self.pc_pop_8()),
+                    0x1 => x_ar.execute_ADC_A_n8(self, self.pc_pop_8()),
+                    0x2 => x_ar.execute_SUB_A_n8(self, self.pc_pop_8()),
+                    0x3 => x_ar.execute_SBC_A_n8(self, self.pc_pop_8()),
+                    0x4 => x_bl.execute_AND_n8(self, self.pc_pop_8()),
+                    0x5 => x_bl.execute_XOR_A_n8(self, self.pc_pop_8()),
+                    0x6 => x_bl.execute_OR_A_n8(self, self.pc_pop_8()),
+                    0x7 => x_ar.execute_CP_A_n8(self, self.pc_pop_8()),
+                }
+            },
+        }
+    }
+
     pub fn pc_pop_16(self: *Cpu) u16 {
         const b1: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.inc();
-        const b2: u8 = self.mem.read8(self.PC.HiLo());
+        const b2: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.Inc();
         return b2 << 8 | b1;
     }
@@ -113,20 +139,22 @@ pub const Cpu = struct {
         return b;
     }
 
+    pub fn sp_pop_16(self: *Cpu) u16 {
+        const b1: u8 = self.mem.read8(self.SP.getHiLo());
+        self.SP.inc();
+        const b2: u8 = self.mem.read8(self.SP.getHiLo());
+        self.SP.Inc();
+        return b2 << 8 | b1;
+    }
+
+    pub fn sp_push_16(self: *Cpu, val: u16) void {
+        self.SP.dec();
+        self.mem.write8(self.SP.getHiLo(), @truncate(val >> 8));
+        self.SP.dec();
+        self.mem.write8(self.SP.getHiLo(), @truncate(val));
+    }
+
     pub fn set_c(self: *Cpu, flag: bool) void {
-        const current: u8 = self.AF.getLo();
-        if (flag) {
-            self.AF.setLo(current | 0x8);
-        } else {
-            self.AF.setLo(current & ~@as(u8, 0x8));
-        }
-    }
-
-    pub fn get_c(self: *Cpu) u1 {
-        return @truncate((self.AF.getLo() & 0x10) >> 4);
-    }
-
-    pub fn set_h(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
             self.AF.setLo(current | 0x10);
@@ -135,7 +163,7 @@ pub const Cpu = struct {
         }
     }
 
-    pub fn set_n(self: *Cpu, flag: bool) void {
+    pub fn set_h(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
             self.AF.setLo(current | 0x20);
@@ -144,12 +172,37 @@ pub const Cpu = struct {
         }
     }
 
-    pub fn set_z(self: *Cpu, flag: bool) void {
+    pub fn set_n(self: *Cpu, flag: bool) void {
         const current: u8 = self.AF.getLo();
         if (flag) {
             self.AF.setLo(current | 0x40);
         } else {
             self.AF.setLo(current & ~@as(u8, 0x40));
         }
+    }
+
+    pub fn set_z(self: *Cpu, flag: bool) void {
+        const current: u8 = self.AF.getLo();
+        if (flag) {
+            self.AF.setLo(current | 0x80);
+        } else {
+            self.AF.setLo(current & ~@as(u8, 0x80));
+        }
+    }
+
+    pub fn get_c(self: *Cpu) u1 {
+        return @truncate((self.AF.getLo() & 0x10) >> 4);
+    }
+
+    pub fn get_h(self: *Cpu) u1 {
+        return @truncate((self.AF.getLo() & 0x20) >> 5);
+    }
+
+    pub fn get_n(self: *Cpu) u1 {
+        return @truncate((self.AF.getLo() & 0x40) >> 6);
+    }
+
+    pub fn get_z(self: *Cpu) u1 {
+        return @truncate((self.AF.getLo() & 0x80) >> 7);
     }
 };

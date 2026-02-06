@@ -96,3 +96,12 @@ pub fn get_r16mem(cpu: *Cpu, index: u2) struct {
         3 => .{ &cpu.HL, false, true },
     };
 }
+
+pub fn check_condition(cpu: *Cpu, cond: u2) bool {
+    switch (cond) {
+        0x0 => return cpu.get_z() == 0,
+        0x1 => return cpu.get_z() == 1,
+        0x2 => return cpu.get_c() == 0,
+        0x3 => return cpu.get_c() == 1,
+    }
+}
