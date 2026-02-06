@@ -3,6 +3,7 @@
 ## To Do
 
 - [ ] use addwithoverflow in execute functions
+- [ ] fix tests
 - [ ] all instruction tests
 - [ ] rom loading
 - [ ] timing
