@@ -64,9 +64,9 @@ pub fn execute_LDH_n16_A(cpu: *Cpu, addrLo: u8) void {
 }
 
 // Copy the value in register A into the byte at address $FF00+C.
-pub fn execute_LDH_C_A(cpu: *Cpu, c: u8) void {
+pub fn execute_LDH_C_A(cpu: *Cpu) void {
     const val: u8 = cpu.AF.getHi();
-    const addr: u16 = 0xFF00 | c;
+    const addr: u16 = 0xFF00 | cpu.BC.getLo();
     cpu.mem.write8(addr, val);
 }
 
@@ -92,8 +92,8 @@ pub fn execute_LDH_A_n16(cpu: *Cpu, addrLo: u8) void {
 }
 
 // Copy the byte at address $FF00+C into register A.
-pub fn execute_LDH_A_c(cpu: *Cpu, addrLo: u8) void {
-    const addr: u16 = 0xFF00 | addrLo;
+pub fn execute_LDH_A_C(cpu: *Cpu) void {
+    const addr: u16 = 0xFF00 | cpu.BC.getLo();
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
 }
@@ -132,31 +132,4 @@ pub fn execute_LD_A_HLI(cpu: *Cpu) void {
     const val: u8 = cpu.mem.read8(addr);
     cpu.AF.setHi(val);
     cpu.HL.inc();
-}
-
-// Copy the value n16 into register SP.
-pub fn execute_LD_SP_n16(cpu: *Cpu, val: u16) void {
-    cpu.SP.set(val);
-}
-
-// Copy SP & $FF at address n16 and SP >> 8 at address n16 + 1.
-pub fn execute_LD_n16_SP(cpu: *Cpu, addr: u16) void {
-    const val1: u8 = cpu.SP.getLo();
-    const val2: u8 = cpu.SP.getHi();
-    cpu.mem.write8(addr, val1);
-    cpu.mem.write8(addr + 1, val2);
-}
-
-// Add the signed value e8 to SP and copy the result in HL.
-pub fn execute_LD_HL_SP_plus_e8(cpu: *Cpu, e8: i8) void {
-    const sp = cpu.SP.getHiLo();
-    const result: u16 = @bitCast(@as(i16, sp) + @as(i16, e8));
-    cpu.HL.set(result);
-    set_NHC_FLAGS_r8_ADD(cpu, @truncate(sp), @bitCast(e8));
-}
-
-// Copy register HL into register SP.
-pub fn execute_LD_SP_HL(cpu: *Cpu) void {
-    const val: u16 = cpu.HL.getHiLo();
-    cpu.SP.set(val);
 }
