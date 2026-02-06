@@ -6,6 +6,8 @@
 - [ ] Stack manipulation instructions (12)
 - [ ] Interrupt-related instructions (3)
 - [ ] Miscellaneous instructions (3)
+- [ ] use addwithoverflow in execute functions
+- [ ] make memory bus
 
 ## Done
 
