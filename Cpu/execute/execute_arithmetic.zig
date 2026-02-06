@@ -91,24 +91,6 @@ pub fn execute_ADD_HL_r16(cpu: *Cpu, r: *Register) void {
     set_NHC_flags_r16_ADD(cpu, op1, op2);
 }
 
-// Add the value in SP to HL.
-pub fn execute_ADD_HL_SP(cpu: *Cpu) void {
-    const op1: u16 = cpu.HL.getHiLo();
-    const op2: u16 = cpu.SP.getHiLo();
-
-    const result = op1 + op2;
-    cpu.HL.set(result);
-
-    set_NHC_flags_r16_ADD(cpu, op1, op2);
-}
-
-pub fn execute_ADD_SP_e8(cpu: *Cpu, e8: i8) void {
-    const sp = cpu.SP.getHiLo();
-    const result: u16 = @bitCast(@as(i16, sp) + @as(i16, e8));
-    cpu.SP.set(result);
-    set_NHC_flags_r8_ADD(cpu, @truncate(sp), @bitCast(e8));
-}
-
 // ComPare the value in A with the value in r8.
 pub fn execute_CP_A_r8(cpu: *Cpu, r: *Register, isHi: bool) void {
     const op1: u8 = cpu.AF.getHi();

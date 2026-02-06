@@ -2,10 +2,6 @@
 
 ## To Do
 
-- [ ] Bit flag instructions (6)
-- [ ] Stack manipulation instructions (12)
-- [ ] Interrupt-related instructions (3)
-- [ ] Miscellaneous instructions (3)
 - [ ] use addwithoverflow in execute functions
 - [ ] make memory bus
 
@@ -18,3 +14,7 @@
 - [x] Carry flag instructions (2)
 - [x] Jumps and subroutine instructions (11)
 - [x] Bitwise logic instructions (10)
+- [x] Stack manipulation instructions (12)
+- [x] Bit flag instructions (6)
+- [x] Interrupt-related instructions (3)
+- [x] Miscellaneous instructions (3)

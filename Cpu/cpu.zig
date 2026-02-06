@@ -4,11 +4,18 @@ const x_bs = @import("./execute/execute_bit_shift.zig");
 const x_bl = @import("./execute/execute_bitwise_logic.zig");
 const x_cf = @import("./execute/execute_carry_flag.zig");
 const x_js = @import("./execute/execute_jump_subroutine.zig");
-const Register = @import("./register.zig");
+const x_sm = @import("./execute/execute_stack_manipulation.zig");
+const x_ir = @import("./execute/execute_interrupt.zig");
+const x_msc = @import("./execute/execute_misc.zig");
+
 const d_ld = @import("./decode/decode_load.zig");
 const d_ar = @import("./decode/decode_arithmetic.zig");
 const d_bs = @import("./decode/decode_bit_shift.zig");
 const d_bl = @import("./decode/decode_bitwise_logic.zig");
+const d_sm = @import("./decode/decode_stack_manipulation.zig");
+const d_bf = @import("./decode/decode_bit_flag.zig");
+
+const Register = @import("./register.zig");
 
 pub const Cpu = struct {
     AF: Register,
@@ -17,9 +24,12 @@ pub const Cpu = struct {
     HL: Register,
     SP: Register,
     PC: Register,
+
+    mem: *Bus,
+
     IME: bool,
 
-    pub fn init() Cpu {
+    pub fn init(mem: *Bus) Cpu {
         return Cpu{
             .AF = Register.init(0),
             .BC = Register.init(0),
@@ -27,6 +37,7 @@ pub const Cpu = struct {
             .HL = Register.init(0),
             .SP = Register.init(0),
             .PC = Register.init(0),
+            .mem = mem,
             .IME = false,
         };
     }
@@ -44,20 +55,24 @@ pub const Cpu = struct {
         }
     }
 
-    pub fn decode_block_0(self: *Cpu, instruction: u8) void {
+    fn decode_block_0(self: *Cpu, instruction: u8) void {
         const opcode: u4 = @truncate(instruction);
         const bits_4_5: u2 = @truncate(instruction >> 4);
         const bits_3_5: u3 = @truncate(instruction >> 3);
 
         switch (opcode) {
-            0x0 => if (bits_4_5 >= 2) x_js.execute_JR_cc_n16(self, bits_3_5, self.pc_pop_8()),
+            0x0 => switch (instruction) {
+                0x00 => x_msc.execute_NOP(),
+                0x10 => x_msc.execute_STOP(),
+                0x20, 0x30 => x_js.execute_JR_cc_n16(self, bits_3_5, self.pc_pop_8()),
+            },
             0x1 => d_ld.decode_LD_r16_n16(self, bits_4_5),
             0x2 => d_ld.decode_LD_r16_A(self, bits_4_5),
             0xA => d_ld.decode_LD_A_r16(self, bits_4_5),
             0x8 => switch (bits_4_5) {
-                0x00 => d_ld.decode_LD_n16_SP(self, bits_4_5),
+                0x00 => d_ld.decode_LD_n16_SP(self, self.pc_pop_16()),
                 0x01 => x_js.execute_JR_n16(self, self.pc_pop_8()),
-                0x02, 0x03 => x_js.execute_JP_cc_n16(self, bits_3_5, self.pc_pop_8()),
+                0x02, 0x03 => x_js.execute_JR_cc_n16(self, bits_3_5, self.pc_pop_8()),
             },
             0x3 => d_ar.decode_INC_r16(self, bits_4_5),
             0xB => d_ar.decode_DEC_r16(self, bits_4_5),
@@ -70,7 +85,7 @@ pub const Cpu = struct {
                 0x1 => x_bs.execute_RRCA(self),
                 0x2 => x_bs.execute_RLA(self),
                 0x3 => x_bs.execute_RRA(self),
-                0x4 => {},
+                0x4 => x_msc.execute_DAA(self),
                 0x5 => x_bl.execute_CPL(self),
                 0x6 => x_cf.execute_SCF(self),
                 0x7 => x_cf.execute_CCF(self),
@@ -78,13 +93,13 @@ pub const Cpu = struct {
         }
     }
 
-    pub fn decode_block_1(self: *Cpu, instruction: u8) void {
+    fn decode_block_1(self: *Cpu, instruction: u8) void {
         const bits_3_5: u3 = @truncate(instruction >> 3);
         const bits_0_2: u3 = @truncate(instruction);
         d_ld.decode_LD_r8_r8(self, bits_0_2, bits_3_5);
     }
 
-    pub fn decode_block_2(self: *Cpu, instruction: u8) void {
+    fn decode_block_2(self: *Cpu, instruction: u8) void {
         const operand: u3 = @truncate(instruction);
         const opcode: u3 = @truncate(instruction >> 3);
         switch (opcode) {
@@ -103,6 +118,7 @@ pub const Cpu = struct {
         const opcode: u6 = @truncate(instruction);
         const bits_3_4: u2 = @truncate(instruction >> 3);
         const bits_3_5: u3 = @truncate(instruction >> 3);
+        const bits_4_5: u2 = @truncate(instruction >> 4);
         switch (opcode) {
             0x06 => x_ar.execute_ADD_A_n8(self, self.pc_pop_8()),
             0x0E => x_ar.execute_ADC_A_n8(self, self.pc_pop_8()),
@@ -117,11 +133,51 @@ pub const Cpu = struct {
             0x09 => x_js.execute_RET(self),
             0x19 => x_js.execute_RETI(self),
             0x02, 0x0A, 0x12, 0x1A => x_js.execute_JP_cc_n16(self, bits_3_4, self.pc_pop_16()),
-            0x03 => x_js.execute_CALL_n16(self, self.pc_pop_16()),
+            0x03 => x_js.execute_JP_n16(self, self.pc_pop_16()),
             0x29 => x_js.execute_JP_HL(self),
             0x04, 0x0C, 0x14, 0x1C => x_js.execute_CALL_cc_n16(self, bits_3_4, self.pc_pop_16()),
             0x0D => x_js.execute_CALL_n16(self, self.pc_pop_16()),
             0x07, 0x0F, 0x17, 0x1F, 0x27, 0x2F, 0x37, 0x3F => x_js.execute_RST_vec(self, bits_3_5 << 3),
+
+            0x01, 0x11, 0x21, 0x31 => d_sm.decode_POP_r16(self, bits_4_5),
+            0x05, 0x15, 0x25, 0x35 => d_sm.decode_PUSH_r16(self, bits_4_5),
+
+            0x0B => self.decode_prefix_cb(self.pc_pop_8()),
+
+            0x22 => x_ld.execute_LDH_C_A(self),
+            0x20 => x_ld.execute_LDH_n16_A(self, self.pc_pop_8()),
+            0x2A => x_ld.execute_LD_n16_A(self, self.pc_pop_16()),
+            0x32 => x_ld.execute_LDH_A_C(self),
+            0x30 => x_ld.execute_LDH_A_n16(self, self.pc_pop_8()),
+            0x3A => x_ld.execute_LD_A_n16(self, self.pc_pop_16()),
+
+            0x28 => x_sm.execute_ADD_SP_e8(self, @bitCast(self.pc_pop_8())),
+            0x38 => x_sm.execute_LD_HL_SP_plus_e8(self, @bitCast(self.pc_pop_8())),
+            0x39 => x_sm.execute_LD_SP_HL(self),
+
+            0x33 => x_ir.execute_DI(self),
+            0x3B => x_ir.execute_EI(self),
+        }
+    }
+
+    fn decode_prefix_cb(self: *Cpu, instruction: u8) void {
+        const bits_6_7: u2 = @truncate(instruction >> 6);
+        const bits_3_5: u3 = @truncate(instruction >> 3);
+        const bits_0_2: u3 = @truncate(instruction);
+        switch (bits_6_7) {
+            0x0 => switch (bits_3_5) {
+                0x0 => d_bs.decode_RLC_r8(self, bits_0_2),
+                0x1 => d_bs.decode_RRC_r8(self, bits_0_2),
+                0x2 => d_bs.decode_RL_r8(self, bits_0_2),
+                0x3 => d_bs.decode_RR_r8(self, bits_0_2),
+                0x4 => d_bs.decode_SLA_r8(self, bits_0_2),
+                0x5 => d_bs.decode_SRA_r8(self, bits_0_2),
+                0x6 => d_bs.decode_SWAP_r8(self, bits_0_2),
+                0x7 => d_bs.decode_SRL_r8(self, bits_0_2),
+            },
+            0x1 => d_bf.decode_BIT_u3_r8(self, bits_3_5, bits_0_2),
+            0x2 => d_bf.decode_RES_u3_r8(self, bits_3_5, bits_0_2),
+            0x3 => d_bf.decode_SET_u3_r8(self, bits_3_5, bits_0_2),
         }
     }
 
@@ -129,7 +185,7 @@ pub const Cpu = struct {
         const b1: u8 = self.mem.read8(self.PC.getHiLo());
         self.PC.inc();
         const b2: u8 = self.mem.read8(self.PC.getHiLo());
-        self.PC.Inc();
+        self.PC.inc();
         return b2 << 8 | b1;
     }
 
@@ -143,7 +199,7 @@ pub const Cpu = struct {
         const b1: u8 = self.mem.read8(self.SP.getHiLo());
         self.SP.inc();
         const b2: u8 = self.mem.read8(self.SP.getHiLo());
-        self.SP.Inc();
+        self.SP.inc();
         return b2 << 8 | b1;
     }
 
