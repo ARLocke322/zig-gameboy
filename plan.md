@@ -3,7 +3,9 @@
 ## To Do
 
 - [ ] use addwithoverflow in execute functions
-- [ ] make memory bus
+- [ ] all instruction tests
+- [ ] rom loading
+- [ ] timing
 
 ## Done
 
@@ -18,3 +20,5 @@
 - [x] Bit flag instructions (6)
 - [x] Interrupt-related instructions (3)
 - [x] Miscellaneous instructions (3)
+- [x] All instruction decoding
+- [x] make memory bus

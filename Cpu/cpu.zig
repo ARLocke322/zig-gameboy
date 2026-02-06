@@ -15,7 +15,8 @@ const d_bl = @import("./decode/decode_bitwise_logic.zig");
 const d_sm = @import("./decode/decode_stack_manipulation.zig");
 const d_bf = @import("./decode/decode_bit_flag.zig");
 
-const Register = @import("./register.zig");
+const Register = @import("./register.zig").Register;
+const Bus = @import("../bus.zig").Bus;
 
 pub const Cpu = struct {
     AF: Register,
