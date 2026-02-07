@@ -8,18 +8,27 @@ pub fn execute_ADD_HL_SP(cpu: *Cpu) void {
     const op1: u16 = cpu.HL.getHiLo();
     const op2: u16 = cpu.SP.getHiLo();
 
-    const result = op1 +% op2;
-    cpu.HL.set(result);
+    const result = @addWithOverflow(op1, op2);
+    cpu.HL.set(result[0]);
 
-    set_NHC_flags_r16_ADD(cpu, op1, op2);
+    set_NHC_flags_r16_ADD(cpu, op1, op2, result[1] == 1);
 }
 
 // Add the signed value e8 to SP.
 pub fn execute_ADD_SP_e8(cpu: *Cpu, e8: i8) void {
     const sp = cpu.SP.getHiLo();
-    const result: u16 = @bitCast(@as(i16, @bitCast(sp)) + @as(i16, e8));
-    cpu.SP.set(result);
-    set_NHC_flags_r8_ADD(cpu, @truncate(sp), @bitCast(e8));
+    const e8_u16: u16 = @bitCast(@as(i16, e8));
+
+    const result = @addWithOverflow(sp, e8_u16);
+    const low_result = @addWithOverflow(
+        @as(u8, @truncate(sp)),
+        @as(u8, @truncate(e8_u16)),
+    );
+
+    cpu.SP.set(result[0]);
+
+    set_NHC_flags_r8_ADD(cpu, @truncate(sp), @truncate(e8_u16), 0, low_result[1] == 1);
+    cpu.set_z(false);
 }
 
 // Decrement the value in register SP by 1.
@@ -46,9 +55,18 @@ pub fn execute_LD_n16_SP(cpu: *Cpu, addr: u16) void {
 // Add the signed value e8 to SP and copy the result in HL.
 pub fn execute_LD_HL_SP_plus_e8(cpu: *Cpu, e8: i8) void {
     const sp = cpu.SP.getHiLo();
-    const result: u16 = @bitCast(@as(i16, @bitCast(sp)) + @as(i16, e8));
-    cpu.HL.set(result);
-    set_NHC_flags_r8_ADD(cpu, @truncate(sp), @bitCast(e8));
+    const e8_u16: u16 = @bitCast(@as(i16, e8));
+
+    const result = @addWithOverflow(sp, e8_u16);
+    const low_result = @addWithOverflow(
+        @as(u8, @truncate(sp)),
+        @as(u8, @truncate(e8_u16)),
+    );
+
+    cpu.HL.set(result[0]);
+
+    set_NHC_flags_r8_ADD(cpu, @truncate(sp), @truncate(e8_u16), 0, low_result[1] == 1);
+    cpu.set_z(false);
 }
 
 // Copy register HL into register SP.

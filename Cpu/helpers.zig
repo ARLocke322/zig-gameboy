@@ -2,37 +2,57 @@ const std = @import("std");
 const Cpu = @import("cpu.zig").Cpu;
 const Register = @import("register.zig").Register;
 
-pub fn set_NHC_flags_r8_ADD(cpu: *Cpu, op1: u8, op2: u8) void {
-    const h = ((op1 & 0x0F) + (op2 & 0x0F)) > 0x0F;
-    const c = (op1 + op2) > 0xFF;
-
-    cpu.set_c(c);
-    cpu.set_h(h);
-    cpu.set_n(false);
+pub fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
+    const hc1 = @addWithOverflow(a, b);
+    const hc2 = @addWithOverflow(hc1[0], c);
+    return hc1[1] == 1 or hc2[1] == 1;
 }
 
-pub fn set_NHC_flags_r8_SUB(cpu: *Cpu, op1: u8, op2: u8) void {
-    const h = (op1 & 0x0F) < (op2 & 0x0F);
-    const c = op1 < op2;
+pub fn halfCarrySub(a: u4, b: u4, c: u1) bool {
+    const hc1 = @subWithOverflow(a, b);
+    const hc2 = @subWithOverflow(hc1[0], c);
+    return hc1[1] == 1 or hc2[1] == 1;
+}
 
-    cpu.set_c(c);
-    cpu.set_h(h);
+pub fn set_NHC_flags_r8_ADD(
+    cpu: *Cpu,
+    op1: u8,
+    op2: u8,
+    carry: u1,
+    carrySet: bool,
+) void {
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2), carry));
+    cpu.set_c(carrySet);
+}
+
+pub fn set_NHC_flags_r16_ADD(
+    cpu: *Cpu,
+    op1: u16,
+    op2: u16,
+    carrySet: bool,
+) void {
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
+    cpu.set_c(carrySet);
+}
+
+pub fn set_NHC_flags_r8_SUB(
+    cpu: *Cpu,
+    op1: u8,
+    op2: u8,
+    carry: u1,
+    carrySet: bool,
+) void {
     cpu.set_n(true);
+    cpu.set_h(halfCarrySub(@truncate(op1), @truncate(op2), carry));
+    cpu.set_c(carrySet);
 }
 
 pub fn set_NHC_flags_r8_SHIFT(cpu: *Cpu, new_carry: u1) void {
     cpu.set_n(false);
     cpu.set_h(false);
     cpu.set_c(new_carry == 1);
-}
-
-pub fn set_NHC_flags_r16_ADD(cpu: *Cpu, op1: u16, op2: u16) void {
-    const h = ((op1 & 0x0FFF) + (op2 & 0x0FFF)) > 0x0FFF;
-    const c = (op1 + op2) > 0xFFFF;
-
-    cpu.set_c(c);
-    cpu.set_h(h);
-    cpu.set_n(true);
 }
 
 pub fn set_NHC_flags_r16_SUB(cpu: *Cpu, op1: u16, op2: u16) void {
