@@ -5,8 +5,8 @@ const Register = @import("../register.zig").Register;
 const helpers = @import("../helpers.zig");
 
 pub fn decode_LD_r16_n16(cpu: *Cpu, register_number: u2) void {
-    var register: Register = helpers.get_r16(cpu, register_number).*;
-    x_ld.execute_LD_r16_n16(&register, cpu.pc_pop_16());
+    const register: *Register = helpers.get_r16(cpu, register_number);
+    x_ld.execute_LD_r16_n16(register, cpu.pc_pop_16());
 }
 
 pub fn decode_LD_r16_A(cpu: *Cpu, register_number: u2) void {

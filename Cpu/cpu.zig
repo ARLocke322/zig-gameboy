@@ -1,3 +1,4 @@
+const std = @import("std");
 const x_ld = @import("./execute/execute_load.zig");
 const x_ar = @import("./execute/execute_arithmetic.zig");
 const x_bs = @import("./execute/execute_bit_shift.zig");
@@ -48,6 +49,7 @@ pub const Cpu = struct {
     }
 
     pub fn decode_execute(self: *Cpu, instruction: u8) void {
+        std.debug.print("Executing: {x}\n", .{instruction});
         switch (instruction & 0xC0) {
             0x00 => self.decode_block_0(instruction),
             0x40 => self.decode_block_1(instruction),
@@ -100,7 +102,7 @@ pub const Cpu = struct {
     fn decode_block_1(self: *Cpu, instruction: u8) void {
         const bits_3_5: u3 = @truncate(instruction >> 3);
         const bits_0_2: u3 = @truncate(instruction);
-        d_ld.decode_LD_r8_r8(self, bits_0_2, bits_3_5);
+        d_ld.decode_LD_r8_r8(self, bits_3_5, bits_0_2);
     }
 
     fn decode_block_2(self: *Cpu, instruction: u8) void {

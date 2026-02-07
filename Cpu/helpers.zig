@@ -56,8 +56,8 @@ pub fn set_NHC_flags_r8_SHIFT(cpu: *Cpu, new_carry: u1) void {
 }
 
 pub fn set_NHC_flags_r16_SUB(cpu: *Cpu, op1: u16, op2: u16) void {
-    const h: u16 = (op1 & 0x0FFF) < (op2 & 0x0FFF);
-    const c: u16 = op1 < op2;
+    const h: bool = (op1 & 0x0FFF) < (op2 & 0x0FFF);
+    const c: bool = op1 < op2;
 
     cpu.set_c(c);
     cpu.set_h(h);

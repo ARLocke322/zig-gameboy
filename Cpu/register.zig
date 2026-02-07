@@ -30,10 +30,10 @@ pub const Register = struct {
     }
 
     pub fn inc(self: *Register) void {
-        self.value += 1;
+        self.value +%= 1;
     }
 
     pub fn dec(self: *Register) void {
-        self.value -= 1;
+        self.value -%= 1;
     }
 };
