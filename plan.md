@@ -7,6 +7,8 @@
 - [ ] all instruction tests
 - [ ] rom loading
 - [ ] timing
+- [ ] split up helpers
+- [ ] maybe generalise some arithmetic functions
 
 ## Done
 
