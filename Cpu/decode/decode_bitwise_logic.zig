@@ -12,7 +12,7 @@ pub fn decode_AND_A_r8(cpu: *Cpu, register_number: u3) void {
 }
 
 pub fn decode_LD_r16_n16(cpu: *Cpu, register_number: u2) void {
-    const register: Register = helpers.get_r16(cpu, register_number).*;
+    const register: *Register = helpers.get_r16(cpu, register_number);
     x_ld.execute_LD_r16_n16(cpu, register, cpu.pc_pop_16());
 }
 

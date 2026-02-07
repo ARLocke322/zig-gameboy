@@ -5,18 +5,18 @@ const Register = @import("../register.zig").Register;
 const helpers = @import("../helpers.zig");
 
 pub fn decode_INC_r16(cpu: *Cpu, register_number: u2) void {
-    var register: Register = helpers.get_r16(cpu, register_number).*;
-    x_ar.execute_INC_r16(&register);
+    const register: *Register = helpers.get_r16(cpu, register_number);
+    x_ar.execute_INC_r16(register);
 }
 
 pub fn decode_DEC_r16(cpu: *Cpu, register_number: u2) void {
-    var register: Register = helpers.get_r16(cpu, register_number).*;
-    x_ar.execute_DEC_r16(&register);
+    const register: *Register = helpers.get_r16(cpu, register_number);
+    x_ar.execute_DEC_r16(register);
 }
 
 pub fn decode_ADD_HL_r16(cpu: *Cpu, register_number: u2) void {
-    var register: Register = helpers.get_r16(cpu, register_number).*;
-    x_ar.execute_ADD_HL_r16(cpu, &register);
+    const register: *Register = helpers.get_r16(cpu, register_number);
+    x_ar.execute_ADD_HL_r16(cpu, register);
 }
 
 pub fn decode_INC_r8(cpu: *Cpu, register_number: u3) void {
