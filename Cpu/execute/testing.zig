@@ -56,7 +56,8 @@ pub fn execSub8(
 
 pub fn execAdd16(
     cpu: *Cpu,
-    set: *const fn (u8) void,
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u16) void,
     op1: u16,
     op2: u16,
 ) void {
@@ -75,4 +76,20 @@ pub fn execLoad16(
     val: u16,
 ) void {
     set(ctx, val);
+}
+
+pub fn execInc16(
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u16) void,
+    current: u16,
+) void {
+    set(ctx, current + 1);
+}
+
+pub fn execDec16(
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u16) void,
+    current: u16,
+) void {
+    set(ctx, current + 1);
 }
