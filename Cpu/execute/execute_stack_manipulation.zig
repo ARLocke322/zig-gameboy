@@ -48,8 +48,7 @@ pub fn execute_LD_SP_n16(cpu: *Cpu, val: u16) void {
 
 // Copy SP & $FF at address n16 and SP >> 8 at address n16 + 1.
 pub fn execute_LD_n16_SP(cpu: *Cpu, addr: u16) void {
-    cpu.mem.write8(addr, cpu.SP.getLo());
-    cpu.mem.write8(addr + 1, cpu.SP.getHi());
+    cpu.mem.write16(addr, cpu.SP.getHiLo());
 }
 
 // Add the signed value e8 to SP and copy the result in HL.

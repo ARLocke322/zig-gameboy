@@ -8,6 +8,8 @@ const x_js = @import("./execute/execute_jump_subroutine.zig");
 const x_sm = @import("./execute/execute_stack_manipulation.zig");
 const x_ir = @import("./execute/execute_interrupt.zig");
 const x_msc = @import("./execute/execute_misc.zig");
+const x = @import("execute/testing.zig");
+const helpers = @import("helpers.zig");
 
 const d_ld = @import("./decode/decode_load.zig");
 const d_ar = @import("./decode/decode_arithmetic.zig");
@@ -72,7 +74,7 @@ pub const Cpu = struct {
                 0x20, 0x30 => x_js.execute_JR_cc_n16(self, bits_3_4, self.pc_pop_8()),
                 else => unreachable,
             },
-            0x1 => d_ld.decode_LD_r16_n16(self, bits_4_5),
+            0x1 => x.execLoad16(&self.BC, Register.set, self.pc_pop_16()),
             0x2 => d_ld.decode_LD_r16_A(self, bits_4_5),
             0xA => d_ld.decode_LD_A_r16(self, bits_4_5),
             0x8 => switch (bits_4_5) {
