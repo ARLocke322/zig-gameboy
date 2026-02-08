@@ -1,4 +1,6 @@
 const Cpu = @import("../cpu.zig").Cpu;
+const Register = @import("../register.zig").Register;
+const Bus = @import("../../bus.zig").Bus;
 
 fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
     const hc1 = @addWithOverflow(a, b);
@@ -15,6 +17,7 @@ fn halfCarrySub(a: u4, b: u4, c: u1) bool {
 // not sure about this, might be better way to handle memory write
 pub fn execAdd8(
     cpu: *Cpu,
+    ctx: anytype,
     set: *const fn (val: u8) void,
     op1: u8,
     op2: u8,
@@ -24,7 +27,7 @@ pub fn execAdd8(
     const r1 = @addWithOverflow(op1, op2);
     const r2 = @addWithOverflow(r1[0], carry);
 
-    set(r2[0]);
+    set(ctx, r2[0]);
 
     cpu.set_z(r2[0] == 0);
     cpu.set_n(false);
@@ -66,6 +69,10 @@ pub fn execAdd16(
     cpu.set_c(result[1] == 1);
 }
 
-pub fn execLoad(set: *const fn (u8) void, val: u8) void {
-    set(val);
+pub fn execLoad16(
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u16) void,
+    val: u16,
+) void {
+    set(ctx, val);
 }
