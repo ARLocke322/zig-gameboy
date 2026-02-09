@@ -14,7 +14,6 @@ fn halfCarrySub(a: u4, b: u4, c: u1) bool {
     return hc1[1] == 1 or hc2[1] == 1;
 }
 
-// not sure about this, might be better way to handle memory write
 pub fn execAdd8(
     cpu: *Cpu,
     ctx: anytype,
@@ -92,4 +91,64 @@ pub fn execDec16(
     current: u16,
 ) void {
     set(ctx, current + 1);
+}
+
+pub fn execInc8(
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u8) void,
+    current: u8,
+) void {
+    set(ctx, current + 1);
+}
+
+pub fn execDec8(
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u8) void,
+    current: u8,
+) void {
+    set(ctx, current - 1);
+}
+
+pub fn execRotateLeft(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (val: u8) void,
+    current: u8,
+    useCarry: bool,
+) void {
+    const new_carry: u1 = @truncate(current >> 7);
+    const new_bit_0: u1 = if (useCarry) cpu.get_c() else new_carry;
+
+    const result: u8 = @as(u8, current) << 1 | new_bit_0;
+
+    set(ctx, result);
+
+    cpu.set_z(false);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(new_carry == 1);
+}
+
+pub fn execRotateRight(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (val: u8) void,
+    current: u8,
+    useCarry: bool,
+) void {
+    const new_carry: u1 = @truncate(current);
+    const new_bit_7: u1 = if (useCarry) cpu.get_c() else new_carry;
+
+    const result: u8 = @as(u8, new_bit_7) << 7 | (current >> 1);
+
+    set(ctx, result);
+
+    cpu.set_z(false);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(new_carry == 1);
+}
+
+pub fn execJump(cpu: *Cpu, val: u16) void {
+    cpu.PC.set(val);
 }
