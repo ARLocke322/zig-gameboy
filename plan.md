@@ -9,6 +9,7 @@
 - [ ] timing
 - [ ] split up helpers
 - [ ] maybe generalise some arithmetic functions
+- [ ] JR variable cycles
 
 ## Done
 
@@ -25,3 +26,4 @@
 - [x] Miscellaneous instructions (3)
 - [x] All instruction decoding
 - [x] make memory bus
+
