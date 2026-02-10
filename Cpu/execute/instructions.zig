@@ -5,7 +5,7 @@ const Bus = @import("../../bus.zig").Bus;
 const x = @import("testing.zig");
 
 // could use array of functions, with a step function, current index, cycles
-const Instruction = struct { execute: *const fn (*Cpu) u8, cycles: u8 };
+const Instruction = struct { execute: *const fn (*Cpu) u8 };
 
 fn inst(execute: *const fn (*Cpu) void) Instruction {
     return Instruction{ .execute = execute };
@@ -792,10 +792,6 @@ fn LD_HL_L(cpu: *Cpu) u8 {
     cpu.mem.write8(cpu.HL.getHiLo(), cpu.HL.getLo());
     return 2;
 }
-fn HALT(cpu: *Cpu) u8 {
-    cpu.halted = true;
-    return 1;
-} // 0x76 is HALT, not LD [HL], [HL]
 fn LD_HL_A(cpu: *Cpu) u8 {
     cpu.mem.write8(cpu.HL.getHiLo(), cpu.AF.getHi());
     return 2;
@@ -1103,4 +1099,36 @@ fn CP_A_HL(cpu: *Cpu) u8 {
 fn CP_A_A(cpu: *Cpu) u8 {
     x.execCp(cpu, cpu.AF.getHi(), cpu.AF.getHi());
     return 1;
+}
+
+fn ADD_A_n8(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), false);
+}
+
+fn ADC_A_n8(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), true);
+}
+
+fn SUB_A_n8(cpu: *Cpu) u8 {
+    x.execSub8(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), false);
+}
+
+fn SBC_A_n8(cpu: *Cpu) u8 {
+    x.execSub8(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), true);
+}
+
+fn AND_A_n8(cpu: *Cpu) u8 {
+    x.execAnd(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+}
+
+fn XOR_A_n8(cpu: *Cpu) u8 {
+    x.execXor(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+}
+
+fn OR_A_n8(cpu: *Cpu) u8 {
+    x.execOr(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+}
+
+fn CP_A_n8(cpu: *Cpu) u8 {
+    x.execCp(cpu, cpu.AF.getHi(), cpu.pc_pop_8());
 }

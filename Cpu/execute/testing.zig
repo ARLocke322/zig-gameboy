@@ -36,7 +36,8 @@ pub fn execAdd8(
 
 pub fn execSub8(
     cpu: *Cpu,
-    set: *const fn (u8) void,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
     useCarry: bool,
@@ -45,7 +46,7 @@ pub fn execSub8(
     const r1 = @subWithOverflow(op1, op2);
     const r2 = @subWithOverflow(r1[0], carry);
 
-    set(r2[0]);
+    set(ctx, r2[0]);
 
     cpu.set_z(r2[0] == 0);
     cpu.set_n(true);
@@ -62,7 +63,7 @@ pub fn execAdd16(
 ) void {
     const result = @addWithOverflow(op1, op2);
 
-    set(result[0]);
+    set(ctx, result[0]);
 
     cpu.set_n(false);
     cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2), 0));
