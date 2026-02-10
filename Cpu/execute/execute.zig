@@ -74,6 +74,16 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
 
         0xBE => CP_A_HL(cpu),
         0xB8...0xBF => CP_A_r8(cpu, instruction),
+
+        // BLOCK 3
+        0xC6 => ADD_A_n8(cpu),
+        0xCE => ADC_A_n8(cpu),
+        0xD6 => SUB_A_n8(cpu),
+        0xDE => SBC_A_n8(cpu),
+        0xE6 => AND_A_n8(cpu),
+        0xEE => XOR_A_n8(cpu),
+        0xF6 => OR_A_n8(cpu),
+        0xFE => CP_A_n8(cpu),
     };
 }
 
@@ -146,7 +156,7 @@ fn ADD_HL_r16(cpu: *Cpu, opcode: u8) u8 {
 
 fn LD_r8_n8(cpu: *Cpu, opcode: u8) u8 {
     const r = get_r8(cpu, @truncate(opcode >> 3));
-    r.set(cpu.pc_pop_8());
+    r.set(r.reg, cpu.pc_pop_8());
     return 2;
 }
 
@@ -181,19 +191,19 @@ fn DEC_HL_mem(cpu: *Cpu) u8 {
 }
 
 fn RLCA(cpu: *Cpu) u8 {
-    x.execRotateLeft(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), false);
+    x.execRotateLeft(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), false);
     return 1;
 }
 fn RRCA(cpu: *Cpu) u8 {
-    x.execRotateRight(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), false);
+    x.execRotateRight(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), false);
     return 1;
 }
 fn RLA(cpu: *Cpu) u8 {
-    x.execRotateLeft(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), true);
+    x.execRotateLeft(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), true);
     return 1;
 }
 fn RRA(cpu: *Cpu) u8 {
-    x.execRotateRight(cpu, cpu.AF, Register.setHi, cpu.AF.getHi(), true);
+    x.execRotateRight(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), true);
     return 1;
 }
 fn DAA(cpu: *Cpu) u8 {
@@ -260,21 +270,119 @@ fn HALT() u8 {
 }
 
 // ------ BLOCK 2 ------
-fn ADD_A_r8(cpu: *Cpu) u8 {}
-fn ADC_A_HL(cpu: *Cpu) u8 {}
-fn ADC_A_r8(cpu: *Cpu) u8 {}
-fn SUB_A_HL(cpu: *Cpu) u8 {}
-fn SUB_A_r8(cpu: *Cpu) u8 {}
-fn SBC_A_HL(cpu: *Cpu) u8 {}
-fn SBC_A_r8(cpu: *Cpu) u8 {}
-fn AND_A_HL(cpu: *Cpu) u8 {}
-fn AND_A_r8(cpu: *Cpu) u8 {}
-fn XOR_A_HL(cpu: *Cpu) u8 {}
-fn XOR_A_r8(cpu: *Cpu) u8 {}
-fn OR_A_HL(cpu: *Cpu) u8 {}
-fn OR_A_r8(cpu: *Cpu) u8 {}
-fn CP_A_HL(cpu: *Cpu) u8 {}
-fn CP_A_r8(cpu: *Cpu) u8 {}
+fn ADD_A_HL(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()), false);
+    return 2;
+}
+fn ADD_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), false);
+    return 1;
+}
+fn ADC_A_HL(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()), true);
+    return 2;
+}
+fn ADC_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), true);
+    return 1;
+}
+fn SUB_A_HL(cpu: *Cpu) u8 {
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()), false);
+    return 2;
+}
+fn SUB_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), false);
+    return 1;
+}
+fn SBC_A_HL(cpu: *Cpu) u8 {
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()), true);
+    return 2;
+}
+fn SBC_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), true);
+    return 1;
+}
+fn AND_A_HL(cpu: *Cpu) u8 {
+    x.execAnd(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()));
+    return 2;
+}
+fn AND_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execAnd(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
+    return 1;
+}
+fn XOR_A_HL(cpu: *Cpu) u8 {
+    x.execXor(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()));
+    return 2;
+}
+fn XOR_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execXor(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
+    return 1;
+}
+fn OR_A_HL(cpu: *Cpu) u8 {
+    x.execOr(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()));
+    return 2;
+}
+fn OR_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execOr(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
+    return 1;
+}
+fn CP_A_HL(cpu: *Cpu) u8 {
+    x.execCp(cpu, cpu.AF.getHi(), cpu.mem.read8(cpu.HL.getHiLo()));
+    return 2;
+}
+fn CP_A_r8(cpu: *Cpu, opcode: u8) u8 {
+    const r = get_r8(cpu, @truncate(opcode));
+    x.execCp(cpu, cpu.AF.getHi(), r.get(r.reg));
+    return 1;
+}
+
+// ----- BLOCK 3 -----
+fn ADD_A_n8(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), false);
+    return 2;
+}
+
+fn ADC_A_n8(cpu: *Cpu) u8 {
+    x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), true);
+    return 2;
+}
+
+fn SUB_A_n8(cpu: *Cpu) u8 {
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), false);
+    return 2;
+}
+
+fn SBC_A_n8(cpu: *Cpu) u8 {
+    x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8(), true);
+    return 2;
+}
+
+fn AND_A_n8(cpu: *Cpu) u8 {
+    x.execAnd(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+    return 2;
+}
+
+fn XOR_A_n8(cpu: *Cpu) u8 {
+    x.execXor(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+    return 2;
+}
+
+fn OR_A_n8(cpu: *Cpu) u8 {
+    x.execOr(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), cpu.pc_pop_8());
+    return 2;
+}
+
+fn CP_A_n8(cpu: *Cpu) u8 {
+    x.execCp(cpu, cpu.AF.getHi(), cpu.pc_pop_8());
+    return 2;
+}
 
 // ------ HELPERS ------
 pub fn get_r8(cpu: *Cpu, index: u3) struct {
