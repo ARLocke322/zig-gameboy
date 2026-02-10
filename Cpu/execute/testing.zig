@@ -152,3 +152,64 @@ pub fn execRotateRight(
 pub fn execJump(cpu: *Cpu, val: u16) void {
     cpu.PC.set(val);
 }
+
+pub fn execAnd(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (val: u8) void,
+    op1: u8,
+    op2: u8,
+) void {
+    const result = op1 & op2;
+    set(ctx, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(true);
+    cpu.set_c(false);
+}
+
+pub fn execXor(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (val: u8) void,
+    op1: u8,
+    op2: u8,
+) void {
+    const result = op1 ^ op2;
+    set(ctx, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(false);
+}
+
+pub fn execOr(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (val: u8) void,
+    op1: u8,
+    op2: u8,
+) void {
+    const result = op1 | op2;
+    set(ctx, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(false);
+}
+
+pub fn execCp(
+    cpu: *Cpu,
+    op1: u8,
+    op2: u8,
+) void {
+    const result = @subWithOverflow(op1, op2);
+
+    cpu.set_z(result[0] == 0);
+    cpu.set_n(true);
+    cpu.set_h(halfCarrySub(@truncate(op1), @truncate(op2), 0));
+    cpu.set_c(result[1] == 1);
+}
