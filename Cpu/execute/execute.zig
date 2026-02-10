@@ -84,6 +84,44 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0xEE => XOR_A_n8(cpu),
         0xF6 => OR_A_n8(cpu),
         0xFE => CP_A_n8(cpu),
+
+        // RET/RETI/JP/CALL/RST
+        0xC0, 0xC8, 0xD0, 0xD8 => RET_cond(cpu, instruction),
+        0xC9 => RET(cpu),
+        0xD9 => RETI(cpu),
+
+        0xC2, 0xCA, 0xD2, 0xDA => JP_cond_n16(cpu, instruction),
+        0xC3 => JP_n16(cpu),
+        0xE9 => JP_HL(cpu),
+
+        0xC4, 0xCC, 0xD4, 0xDC => CALL_cond_n16(cpu, instruction),
+        0xCD => CALL_n16(cpu),
+
+        0xC7, 0xCF, 0xD7, 0xDF, 0xE7, 0xEF, 0xF7, 0xFF => RST(cpu, instruction),
+
+        // PUSH/POP
+        0xC1, 0xD1, 0xE1, 0xF1 => POP_r16stk(cpu, instruction),
+        0xC5, 0xD5, 0xE5, 0xF5 => PUSH_r16stk(cpu, instruction),
+
+        // CB prefix
+        0xCB => CB_PREFIX(cpu),
+
+        // High memory operations
+        0xE2 => LDH_C_A(cpu),
+        0xE0 => LDH_n8_A(cpu),
+        0xEA => LD_n16_A(cpu),
+        0xF2 => LDH_A_C(cpu),
+        0xF0 => LDH_A_n8(cpu),
+        0xFA => LD_A_n16(cpu),
+
+        // SP operations
+        0xE8 => ADD_SP_n8(cpu),
+        0xF8 => LD_HL_SP_n8(cpu),
+        0xF9 => LD_SP_HL(cpu),
+
+        // Interrupt enable/disable
+        0xF3 => DI(cpu),
+        0xFB => EI(cpu),
     };
 }
 
@@ -384,6 +422,116 @@ fn CP_A_n8(cpu: *Cpu) u8 {
     return 2;
 }
 
+fn RET_cond(cpu: *Cpu, opcode: u8) u8 {
+    if (check_condition(cpu, @truncate(opcode >> 3))) {
+        x.execRet(cpu);
+        return 5;
+    } else {
+        return 2;
+    }
+}
+
+fn RET(cpu: *Cpu) u8 {
+    x.execRet(cpu);
+    return 4;
+}
+
+fn RETI(cpu: *Cpu) u8 {
+    x.execRet(cpu);
+    cpu.IME = true;
+    return 4;
+}
+
+fn JP_cond_n16(cpu: *Cpu, opcode: u8) u8 {
+    if (check_condition(cpu, @truncate(opcode >> 4))) {
+        x.execJump(cpu, cpu.pc_pop_16());
+        return 4;
+    } else {
+        return 3;
+    }
+}
+
+fn JP_n16(cpu: *Cpu) u8 {
+    x.execJump(cpu, cpu.pc_pop_16());
+    return 1;
+}
+
+fn JP_HL(cpu: *Cpu) u8 {
+    x.execJump(cpu, cpu.HL.getHiLo());
+}
+
+fn CALL_cond_n16(cpu: *Cpu, opcode: u8) u8 {
+    if (check_condition(cpu, @truncate(opcode >> 4))) {
+        x.execCall(cpu, cpu.pc_pop_16());
+        return 4;
+    } else {
+        return 3;
+    }
+}
+
+fn CALL_n16(cpu: *Cpu) u8 {
+    x.execCall(cpu, cpu.pc_pop_16());
+    return 1;
+}
+
+fn RST(cpu: *Cpu, instruction: u8) u8 {
+    const val: u8 = (instruction & 0x3F) << 3;
+    x.execCall(cpu, val);
+    return 4;
+}
+
+fn POP_r16stk(cpu: *Cpu, instruction: u8) u8 {
+    const r = get_r16stk(cpu, @truncate(instruction >> 4));
+    r.set(cpu.sp_pop_16());
+    return 3;
+}
+
+fn PUSH_r16stk(cpu: *Cpu, instruction: u8) u8 {
+    const r = get_r16stk(cpu, @truncate(instruction >> 4));
+    cpu.sp_push_16(r.getHiLo());
+    return 4;
+}
+
+fn LDH_C_A(cpu: *Cpu) u8 {
+    const addr: u16 = 0xFF00 | @as(u16, cpu.BC.getLo());
+    cpu.mem.write8(addr, cpu.AF.getHi());
+    return 2;
+}
+
+fn LD_n16_A(cpu: *Cpu) u8 {
+    cpu.mem.write8(cpu.pc_pop_16(), cpu.AF.getHi());
+    return 4;
+}
+
+fn LDH_A_C(cpu: *Cpu) u8 {
+    const addr: u16 = 0xFF00 | @as(u16, cpu.BC.getLo());
+    cpu.AF.setHi(cpu.mem.read8(addr));
+    return 2;
+}
+
+fn LDH_A_n8(cpu: *Cpu) u8 {
+    const val: u8 = cpu.mem.read8(@as(u16, cpu.pc_pop_8()) | 0xFF00);
+    cpu.AF.setHi(val);
+    return 3;
+}
+
+fn LD_A_n16(cpu: *Cpu) u8 {
+    cpu.AF.setHi(cpu.mem.read8(cpu.pc_pop_16()));
+    return 4;
+}
+
+fn ADD_SP_n8(cpu: *Cpu) u8 {
+    const offset: i8 = @bitCast(cpu.pc_pop_8());
+    x.execAdd16Signed(cpu, &cpu.SP, Register.set, cpu.SP.getHiLo(), @as(i16, offset));
+    return 4;
+}
+
+//// SP operations
+//0xF8 => LD_HL_SP_n8(cpu),
+//0xF9 => LD_SP_HL(cpu),
+//// Interrupt enable/disable
+//0xF3 => DI(cpu),
+//0xFB => EI(cpu),
 // ------ HELPERS ------
 pub fn get_r8(cpu: *Cpu, index: u3) struct {
     reg: *Register,
@@ -420,4 +568,22 @@ pub fn get_r16mem(cpu: *Cpu, index: u2) *Register {
         2 => unreachable,
         3 => unreachable,
     };
+}
+
+pub fn get_r16stk(cpu: *Cpu, index: u2) *Register {
+    return switch (index) {
+        0 => &cpu.BC,
+        1 => &cpu.DE,
+        2 => &cpu.HL,
+        3 => &cpu.AF,
+    };
+}
+
+pub fn check_condition(cpu: *Cpu, cond: u2) bool {
+    switch (cond) {
+        0x0 => return cpu.get_z() == 0,
+        0x1 => return cpu.get_z() == 1,
+        0x2 => return cpu.get_c() == 0,
+        0x3 => return cpu.get_c() == 1,
+    }
 }

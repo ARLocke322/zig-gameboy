@@ -70,6 +70,25 @@ pub fn execAdd16(
     cpu.set_c(result[1] == 1);
 }
 
+// fix
+pub fn execAdd16Signed(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: fn (@TypeOf(ctx), u16) void,
+    op1: u16,
+    op2: i16,
+) void {
+    const op2_u16: u16 = @bitCast(op2);
+    const result = @addWithOverflow(op1, op2_u16);
+
+    set(ctx, result[0]);
+
+    cpu.set_z(false);
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2_u16), 0));
+    cpu.set_c((op1 & 0xFF) + (op2_u16 & 0xFF) > 0xFF);
+}
+
 pub fn execLoad16(
     ctx: anytype,
     set: fn (@TypeOf(ctx), u16) void,
@@ -152,6 +171,15 @@ pub fn execRotateRight(
 
 pub fn execJump(cpu: *Cpu, val: u16) void {
     cpu.PC.set(val);
+}
+
+pub fn execCall(cpu: *Cpu, val: u16) void {
+    cpu.sp_push_16(cpu.PC.getHiLo());
+    cpu.PC.set(val);
+}
+
+pub fn execRet(cpu: *Cpu) void {
+    cpu.PC.set(cpu.sp_pop_16());
 }
 
 pub fn execAnd(
