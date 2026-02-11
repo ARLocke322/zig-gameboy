@@ -1,6 +1,6 @@
 const Cpu = @import("cpu.zig").Cpu;
 const Register = @import("register.zig").Register;
-const Bus = @import("../bus.zig").Bus;
+const Bus = @import("bus.zig").Bus;
 const x = @import("functions.zig");
 const helpers = @import("helpers.zig");
 const CB_PREFIX = @import("./CB.zig").CB_PREFIX;

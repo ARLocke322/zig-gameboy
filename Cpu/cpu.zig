@@ -2,8 +2,8 @@ const std = @import("std");
 const execute = @import("execute.zig").execute;
 const helpers = @import("helpers.zig");
 
-const Register = @import("./register.zig").Register;
-const Bus = @import("../bus.zig").Bus;
+const Register = @import("register.zig").Register;
+const Bus = @import("bus.zig").Bus;
 
 pub const Cpu = struct {
     AF: Register,

@@ -1,6 +1,6 @@
 const Cpu = @import("cpu.zig").Cpu;
 const Register = @import("register.zig").Register;
-const Bus = @import("../bus.zig").Bus;
+const Bus = @import("bus.zig").Bus;
 
 fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
     const hc1 = @addWithOverflow(a, b);
