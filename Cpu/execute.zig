@@ -1,8 +1,9 @@
-const std = @import("std");
-const Cpu = @import("../cpu.zig").Cpu;
-const Register = @import("../register.zig").Register;
-const Bus = @import("../../bus.zig").Bus;
-const x = @import("testing.zig");
+const Cpu = @import("cpu.zig").Cpu;
+const Register = @import("register.zig").Register;
+const Bus = @import("../bus.zig").Bus;
+const x = @import("functions.zig");
+const helpers = @import("helpers.zig");
+const CB_PREFIX = @import("./CB.zig").CB_PREFIX;
 
 pub fn execute(cpu: *Cpu, instruction: u8) u8 {
     return switch (instruction) {
@@ -48,32 +49,35 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0x76 => HALT(),
         0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x7E => LD_r8_HL(cpu, instruction),
         0x70...0x75, 0x77 => LD_HL_r8(cpu, instruction),
-        0x40...0x7F => LD_r8_r8(cpu, instruction),
+
+        0x40...0x45,
+        0x47...0x4D,
+        0x4F...0x55,
+        0x57...0x5D,
+        0x5F...0x65,
+        0x67...0x6D,
+        0x6F,
+        0x78...0x7D,
+        0x7F,
+        => LD_r8_r8(cpu, instruction),
 
         // BLOCK 2
         0x86 => ADD_A_HL(cpu),
-        0x80...0x87 => ADD_A_r8(cpu, instruction),
-
+        0x80...0x85, 0x87 => ADD_A_r8(cpu, instruction),
         0x8E => ADC_A_HL(cpu),
-        0x88...0x8F => ADC_A_r8(cpu, instruction),
-
+        0x88...0x8D, 0x8F => ADC_A_r8(cpu, instruction),
         0x96 => SUB_A_HL(cpu),
-        0x90...0x97 => SUB_A_r8(cpu, instruction),
-
+        0x90...0x95, 0x97 => SUB_A_r8(cpu, instruction),
         0x9E => SBC_A_HL(cpu),
-        0x98...0x9F => SBC_A_r8(cpu, instruction),
-
+        0x98...0x9D, 0x9F => SBC_A_r8(cpu, instruction),
         0xA6 => AND_A_HL(cpu),
-        0xA0...0xA7 => AND_A_r8(cpu, instruction),
-
+        0xA0...0xA5, 0xA7 => AND_A_r8(cpu, instruction),
         0xAE => XOR_A_HL(cpu),
-        0xA8...0xAF => XOR_A_r8(cpu, instruction),
-
+        0xA8...0xAD, 0xAF => XOR_A_r8(cpu, instruction),
         0xB6 => OR_A_HL(cpu),
-        0xB0...0xB7 => OR_A_r8(cpu, instruction),
-
+        0xB0...0xB5, 0xB7 => OR_A_r8(cpu, instruction),
         0xBE => CP_A_HL(cpu),
-        0xB8...0xBF => CP_A_r8(cpu, instruction),
+        0xB8...0xBD, 0xBF => CP_A_r8(cpu, instruction),
 
         // BLOCK 3
         0xC6 => ADD_A_n8(cpu),
@@ -85,7 +89,6 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0xF6 => OR_A_n8(cpu),
         0xFE => CP_A_n8(cpu),
 
-        // RET/RETI/JP/CALL/RST
         0xC0, 0xC8, 0xD0, 0xD8 => RET_cond(cpu, instruction),
         0xC9 => RET(cpu),
         0xD9 => RETI(cpu),
@@ -99,14 +102,11 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
 
         0xC7, 0xCF, 0xD7, 0xDF, 0xE7, 0xEF, 0xF7, 0xFF => RST(cpu, instruction),
 
-        // PUSH/POP
         0xC1, 0xD1, 0xE1, 0xF1 => POP_r16stk(cpu, instruction),
         0xC5, 0xD5, 0xE5, 0xF5 => PUSH_r16stk(cpu, instruction),
 
-        // CB prefix
         0xCB => CB_PREFIX(cpu),
 
-        // High memory operations
         0xE2 => LDH_C_A(cpu),
         0xE0 => LDH_n8_A(cpu),
         0xEA => LD_n16_A(cpu),
@@ -114,14 +114,14 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0xF0 => LDH_A_n8(cpu),
         0xFA => LD_A_n16(cpu),
 
-        // SP operations
         0xE8 => ADD_SP_n8(cpu),
         0xF8 => LD_HL_SP_n8(cpu),
         0xF9 => LD_SP_HL(cpu),
 
-        // Interrupt enable/disable
         0xF3 => DI(cpu),
         0xFB => EI(cpu),
+
+        else => 0x00,
     };
 }
 
@@ -131,13 +131,13 @@ fn NOP(cpu: *Cpu) u8 {
 }
 
 fn LD_r16_n16(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
     r.set(cpu.pc_pop_16());
     return 3;
 }
 
 fn LD_r16_A(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
     cpu.mem.write8(r.getHiLo(), cpu.AF.getHi());
     return 2;
 }
@@ -154,7 +154,7 @@ fn LD_HLD_A(cpu: *Cpu) u8 {
 }
 
 fn LD_A_r16(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16mem(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16mem(cpu, @truncate(opcode >> 4));
     cpu.AF.setHi(cpu.mem.read8(r.getHiLo()));
     return 2;
 }
@@ -175,25 +175,25 @@ fn LD_n16_SP(cpu: *Cpu) u8 {
 }
 
 fn INC_r16(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
     x.execInc16(r, Register.set, r.getHiLo());
     return 2;
 }
 
 fn DEC_r16(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
     x.execDec16(r, Register.set, r.getHiLo());
     return 2;
 }
 
 fn ADD_HL_r16(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r16(cpu, @truncate(opcode >> 4));
+    const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
     x.execAdd16(cpu, r, Register.set, cpu.HL.getHiLo(), r.getHiLo());
     return 2;
 }
 
 fn LD_r8_n8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode >> 3));
+    const r = helpers.get_r8(cpu, @truncate(opcode >> 3));
     r.set(r.reg, cpu.pc_pop_8());
     return 2;
 }
@@ -205,7 +205,7 @@ fn LD_HL_mem_n8(cpu: *Cpu) u8 {
 }
 
 fn INC_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode >> 3));
+    const r = helpers.get_r8(cpu, @truncate(opcode >> 3));
     x.execInc8(r.reg, r.set, r.get(r.reg));
     return 1;
 }
@@ -217,7 +217,7 @@ fn INC_HL_mem(cpu: *Cpu) u8 {
 }
 
 fn DEC_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode >> 3));
+    const r = helpers.get_r8(cpu, @truncate(opcode >> 3));
     x.execDec8(r.reg, r.set, r.get(r.reg));
     return 1;
 }
@@ -284,20 +284,20 @@ fn CCF(cpu: *Cpu) u8 {
 }
 
 fn LD_r8_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r_d = get_r8(cpu, @truncate(opcode >> 3));
-    const r_s = get_r8(cpu, @truncate(opcode));
+    const r_d = helpers.get_r8(cpu, @truncate(opcode >> 3));
+    const r_s = helpers.get_r8(cpu, @truncate(opcode));
     r_d.set(r_d.reg, r_s.get(r_s.reg));
     return 1;
 }
 
 fn LD_r8_HL(cpu: *Cpu, opcode: u8) u8 {
-    const r_d = get_r8(cpu, @truncate(opcode >> 3));
+    const r_d = helpers.get_r8(cpu, @truncate(opcode >> 3));
     r_d.set(r_d.reg, cpu.mem.read8(cpu.HL.getHiLo()));
     return 2;
 }
 
 fn LD_HL_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r_s = get_r8(cpu, @truncate(opcode));
+    const r_s = helpers.get_r8(cpu, @truncate(opcode));
     cpu.mem.write8(cpu.HL.getHiLo(), r_s.get(r_s.reg));
     return 2;
 }
@@ -313,7 +313,7 @@ fn ADD_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn ADD_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), false);
     return 1;
 }
@@ -322,7 +322,7 @@ fn ADC_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn ADC_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execAdd8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), true);
     return 1;
 }
@@ -331,7 +331,7 @@ fn SUB_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn SUB_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), false);
     return 1;
 }
@@ -340,7 +340,7 @@ fn SBC_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn SBC_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execSub8(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg), true);
     return 1;
 }
@@ -349,7 +349,7 @@ fn AND_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn AND_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execAnd(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
     return 1;
 }
@@ -358,7 +358,7 @@ fn XOR_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn XOR_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execXor(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
     return 1;
 }
@@ -367,7 +367,7 @@ fn OR_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn OR_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execOr(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), r.get(r.reg));
     return 1;
 }
@@ -376,7 +376,7 @@ fn CP_A_HL(cpu: *Cpu) u8 {
     return 2;
 }
 fn CP_A_r8(cpu: *Cpu, opcode: u8) u8 {
-    const r = get_r8(cpu, @truncate(opcode));
+    const r = helpers.get_r8(cpu, @truncate(opcode));
     x.execCp(cpu, cpu.AF.getHi(), r.get(r.reg));
     return 1;
 }
@@ -423,7 +423,7 @@ fn CP_A_n8(cpu: *Cpu) u8 {
 }
 
 fn RET_cond(cpu: *Cpu, opcode: u8) u8 {
-    if (check_condition(cpu, @truncate(opcode >> 3))) {
+    if (helpers.check_condition(cpu, @truncate(opcode >> 3))) {
         x.execRet(cpu);
         return 5;
     } else {
@@ -443,8 +443,9 @@ fn RETI(cpu: *Cpu) u8 {
 }
 
 fn JP_cond_n16(cpu: *Cpu, opcode: u8) u8 {
-    if (check_condition(cpu, @truncate(opcode >> 4))) {
-        x.execJump(cpu, cpu.pc_pop_16());
+    const addr = cpu.pc_pop_16();
+    if (helpers.check_condition(cpu, @truncate(opcode >> 3))) {
+        x.execJump(cpu, addr);
         return 4;
     } else {
         return 3;
@@ -453,17 +454,19 @@ fn JP_cond_n16(cpu: *Cpu, opcode: u8) u8 {
 
 fn JP_n16(cpu: *Cpu) u8 {
     x.execJump(cpu, cpu.pc_pop_16());
-    return 1;
+    return 4;
 }
 
 fn JP_HL(cpu: *Cpu) u8 {
     x.execJump(cpu, cpu.HL.getHiLo());
+    return 1;
 }
 
 fn CALL_cond_n16(cpu: *Cpu, opcode: u8) u8 {
-    if (check_condition(cpu, @truncate(opcode >> 4))) {
-        x.execCall(cpu, cpu.pc_pop_16());
-        return 4;
+    const addr = cpu.pc_pop_16();
+    if (helpers.check_condition(cpu, @truncate(opcode >> 3))) {
+        x.execCall(cpu, addr);
+        return 6;
     } else {
         return 3;
     }
@@ -471,25 +474,31 @@ fn CALL_cond_n16(cpu: *Cpu, opcode: u8) u8 {
 
 fn CALL_n16(cpu: *Cpu) u8 {
     x.execCall(cpu, cpu.pc_pop_16());
-    return 1;
+    return 6;
 }
 
 fn RST(cpu: *Cpu, instruction: u8) u8 {
-    const val: u8 = (instruction & 0x3F) << 3;
+    const val: u8 = instruction & 0x38;
     x.execCall(cpu, val);
     return 4;
 }
 
 fn POP_r16stk(cpu: *Cpu, instruction: u8) u8 {
-    const r = get_r16stk(cpu, @truncate(instruction >> 4));
+    const r = helpers.get_r16stk(cpu, @truncate(instruction >> 4));
     r.set(cpu.sp_pop_16());
     return 3;
 }
 
 fn PUSH_r16stk(cpu: *Cpu, instruction: u8) u8 {
-    const r = get_r16stk(cpu, @truncate(instruction >> 4));
+    const r = helpers.get_r16stk(cpu, @truncate(instruction >> 4));
     cpu.sp_push_16(r.getHiLo());
     return 4;
+}
+
+fn LDH_n8_A(cpu: *Cpu) u8 {
+    const addr: u16 = 0xFF00 | @as(u16, cpu.pc_pop_8());
+    cpu.mem.write8(addr, cpu.AF.getHi());
+    return 3;
 }
 
 fn LDH_C_A(cpu: *Cpu) u8 {
@@ -526,64 +535,24 @@ fn ADD_SP_n8(cpu: *Cpu) u8 {
     return 4;
 }
 
-//// SP operations
-//0xF8 => LD_HL_SP_n8(cpu),
-//0xF9 => LD_SP_HL(cpu),
-//// Interrupt enable/disable
-//0xF3 => DI(cpu),
-//0xFB => EI(cpu),
-// ------ HELPERS ------
-pub fn get_r8(cpu: *Cpu, index: u3) struct {
-    reg: *Register,
-    get: *const fn (*Register) u8,
-    set: *const fn (*Register, u8) void,
-} {
-    std.debug.assert(index != 6);
-    return switch (index) {
-        0 => .{ .reg = &cpu.BC, .get = Register.getHi, .set = Register.setHi },
-        1 => .{ .reg = &cpu.BC, .get = Register.getLo, .set = Register.setLo },
-        2 => .{ .reg = &cpu.DE, .get = Register.getHi, .set = Register.setHi },
-        3 => .{ .reg = &cpu.DE, .get = Register.getLo, .set = Register.setLo },
-        4 => .{ .reg = &cpu.HL, .get = Register.getHi, .set = Register.setHi },
-        5 => .{ .reg = &cpu.HL, .get = Register.getLo, .set = Register.setLo },
-        6 => unreachable,
-        7 => .{ .reg = &cpu.AF, .get = Register.getHi, .set = Register.setHi },
-    };
+fn LD_HL_SP_n8(cpu: *Cpu) u8 {
+    const offset: i8 = @bitCast(cpu.pc_pop_8());
+    x.execAdd16Signed(cpu, &cpu.HL, Register.set, cpu.SP.getHiLo(), @as(i16, offset));
+    return 3;
 }
 
-pub fn get_r16(cpu: *Cpu, index: u2) *Register {
-    return switch (index) {
-        0 => &cpu.BC,
-        1 => &cpu.DE,
-        2 => &cpu.HL,
-        3 => &cpu.SP,
-    };
+fn LD_SP_HL(cpu: *Cpu) u8 {
+    cpu.SP.set(cpu.HL.getHiLo());
+    return 2;
 }
 
-pub fn get_r16mem(cpu: *Cpu, index: u2) *Register {
-    std.debug.assert(index == 0 or index == 1);
-    return switch (index) {
-        0 => &cpu.BC,
-        1 => &cpu.DE,
-        2 => unreachable,
-        3 => unreachable,
-    };
+// change to after following instruction
+pub fn EI(cpu: *Cpu) u8 {
+    cpu.IME = true;
+    return 1;
 }
 
-pub fn get_r16stk(cpu: *Cpu, index: u2) *Register {
-    return switch (index) {
-        0 => &cpu.BC,
-        1 => &cpu.DE,
-        2 => &cpu.HL,
-        3 => &cpu.AF,
-    };
-}
-
-pub fn check_condition(cpu: *Cpu, cond: u2) bool {
-    switch (cond) {
-        0x0 => return cpu.get_z() == 0,
-        0x1 => return cpu.get_z() == 1,
-        0x2 => return cpu.get_c() == 0,
-        0x3 => return cpu.get_c() == 1,
-    }
+pub fn DI(cpu: *Cpu) u8 {
+    cpu.IME = false;
+    return 1;
 }
