@@ -2,13 +2,9 @@
 
 ## To Do
 
-- [x] use addwithoverflow in execute functions
-- [x] fix tests
 - [ ] rom loading
 - [ ] timing
-- [ ] split up helpers
-- [ ] maybe generalise some arithmetic functions
-- [ ] JR variable cycles
+- [ ] MCB2 and MCB3
 
 ## Done
 
@@ -25,4 +21,9 @@
 - [x] Miscellaneous instructions (3)
 - [x] All instruction decoding
 - [x] make memory bus
+- [x] split up helpers
+- [x] maybe generalise some arithmetic functions
+- [x] JR variable cycles
+- [x] use addwithoverflow in execute functions
+- [x] fix tests
 
