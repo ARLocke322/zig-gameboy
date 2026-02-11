@@ -5,15 +5,15 @@ pub const Register = struct {
         return Register{ .value = val };
     }
 
-    pub fn getHi(self: Register) u8 {
+    pub fn getHi(self: *Register) u8 {
         return @truncate(self.value >> 8);
     }
 
-    pub fn getLo(self: Register) u8 {
+    pub fn getLo(self: *Register) u8 {
         return @truncate(self.value);
     }
 
-    pub fn getHiLo(self: Register) u16 {
+    pub fn getHiLo(self: *Register) u16 {
         return self.value;
     }
 

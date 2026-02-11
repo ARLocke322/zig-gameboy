@@ -1,6 +1,6 @@
-const Cpu = @import("../cpu.zig").Cpu;
-const Register = @import("../register.zig").Register;
-const Bus = @import("../../bus.zig").Bus;
+const Cpu = @import("cpu.zig").Cpu;
+const Register = @import("register.zig").Register;
+const Bus = @import("../bus.zig").Bus;
 
 fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
     const hc1 = @addWithOverflow(a, b);
@@ -17,7 +17,7 @@ fn halfCarrySub(a: u4, b: u4, c: u1) bool {
 pub fn execAdd8(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
     useCarry: bool,
@@ -36,7 +36,8 @@ pub fn execAdd8(
 
 pub fn execSub8(
     cpu: *Cpu,
-    set: *const fn (u8) void,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
     useCarry: bool,
@@ -45,7 +46,7 @@ pub fn execSub8(
     const r1 = @subWithOverflow(op1, op2);
     const r2 = @subWithOverflow(r1[0], carry);
 
-    set(r2[0]);
+    set(ctx, r2[0]);
 
     cpu.set_z(r2[0] == 0);
     cpu.set_n(true);
@@ -56,22 +57,41 @@ pub fn execSub8(
 pub fn execAdd16(
     cpu: *Cpu,
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u16) void,
+    set: *const fn (@TypeOf(ctx), u16) void,
     op1: u16,
     op2: u16,
 ) void {
     const result = @addWithOverflow(op1, op2);
 
-    set(result[0]);
+    set(ctx, result[0]);
 
     cpu.set_n(false);
-    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2), 0));
+    cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
     cpu.set_c(result[1] == 1);
+}
+
+// fix
+pub fn execAdd16Signed(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u16) void,
+    op1: u16,
+    op2: i16,
+) void {
+    const op2_u16: u16 = @bitCast(op2);
+    const result = @addWithOverflow(op1, op2_u16);
+
+    set(ctx, result[0]);
+
+    cpu.set_z(false);
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2_u16), 0));
+    cpu.set_c((op1 & 0xFF) + (op2_u16 & 0xFF) > 0xFF);
 }
 
 pub fn execLoad16(
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u16) void,
+    set: *const fn (@TypeOf(ctx), u16) void,
     val: u16,
 ) void {
     set(ctx, val);
@@ -79,7 +99,7 @@ pub fn execLoad16(
 
 pub fn execInc16(
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u16) void,
+    set: *const fn (@TypeOf(ctx), u16) void,
     current: u16,
 ) void {
     set(ctx, current + 1);
@@ -87,15 +107,15 @@ pub fn execInc16(
 
 pub fn execDec16(
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u16) void,
+    set: *const fn (@TypeOf(ctx), u16) void,
     current: u16,
 ) void {
-    set(ctx, current + 1);
+    set(ctx, current - 1);
 }
 
 pub fn execInc8(
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
 ) void {
     set(ctx, current + 1);
@@ -103,7 +123,7 @@ pub fn execInc8(
 
 pub fn execDec8(
     ctx: anytype,
-    set: fn (@TypeOf(ctx), u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
 ) void {
     set(ctx, current - 1);
@@ -112,7 +132,7 @@ pub fn execDec8(
 pub fn execRotateLeft(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
     useCarry: bool,
 ) void {
@@ -123,7 +143,7 @@ pub fn execRotateLeft(
 
     set(ctx, result);
 
-    cpu.set_z(false);
+    cpu.set_z(result == 0);
     cpu.set_n(false);
     cpu.set_h(false);
     cpu.set_c(new_carry == 1);
@@ -132,7 +152,7 @@ pub fn execRotateLeft(
 pub fn execRotateRight(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
     useCarry: bool,
 ) void {
@@ -143,7 +163,7 @@ pub fn execRotateRight(
 
     set(ctx, result);
 
-    cpu.set_z(false);
+    if (useCarry) cpu.set_z(result == 0) else cpu.set_z(false);
     cpu.set_n(false);
     cpu.set_h(false);
     cpu.set_c(new_carry == 1);
@@ -153,10 +173,19 @@ pub fn execJump(cpu: *Cpu, val: u16) void {
     cpu.PC.set(val);
 }
 
+pub fn execCall(cpu: *Cpu, val: u16) void {
+    cpu.sp_push_16(cpu.PC.getHiLo());
+    cpu.PC.set(val);
+}
+
+pub fn execRet(cpu: *Cpu) void {
+    cpu.PC.set(cpu.sp_pop_16());
+}
+
 pub fn execAnd(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
 ) void {
@@ -172,7 +201,7 @@ pub fn execAnd(
 pub fn execXor(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
 ) void {
@@ -188,7 +217,7 @@ pub fn execXor(
 pub fn execOr(
     cpu: *Cpu,
     ctx: anytype,
-    set: *const fn (val: u8) void,
+    set: *const fn (@TypeOf(ctx), u8) void,
     op1: u8,
     op2: u8,
 ) void {
@@ -212,4 +241,52 @@ pub fn execCp(
     cpu.set_n(true);
     cpu.set_h(halfCarrySub(@truncate(op1), @truncate(op2), 0));
     cpu.set_c(result[1] == 1);
+}
+
+pub fn execArithmeticShift(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u8) void,
+    current: u8,
+    left: bool,
+) void {
+    const new_carry: u1 = if (left) @truncate(current >> 7) else @truncate(current);
+
+    const result = if (left) current << 1 else (current >> 1) | (current & 0x80);
+    set(ctx, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(new_carry == 1);
+}
+
+pub fn execLogicalShiftRight(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u8) void,
+    current: u8,
+) void {
+    const new_carry: u1 = @truncate(current);
+
+    const result = current >> 1;
+    set(ctx, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(new_carry == 1);
+}
+pub fn execSwap(
+    cpu: *Cpu,
+    ctx: anytype,
+    set: *const fn (@TypeOf(ctx), u8) void,
+    current: u8,
+) void {
+    const result: u8 = (current << 4) | (current >> 4);
+    set(ctx, result);
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(false);
+    cpu.set_c(false);
 }
