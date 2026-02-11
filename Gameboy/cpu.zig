@@ -34,10 +34,11 @@ pub const Cpu = struct {
         return self.pc_pop_8();
     }
 
-    pub fn decode_execute(self: *Cpu, instruction: u8) void {
+    pub fn decode_execute(self: *Cpu, instruction: u8) u8 {
         std.debug.print("Executing: {x}\n", .{instruction});
         const cycles: u8 = execute(self, instruction);
         std.debug.print("Cycles: {x}\n", .{cycles});
+        return cycles;
     }
 
     pub fn pc_pop_16(self: *Cpu) u16 {
