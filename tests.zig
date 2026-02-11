@@ -1,5 +1,5 @@
 const std = @import("std");
-const Bus = @import("bus.zig").Bus;
+const Bus = @import("Cpu/bus.zig").Bus;
 const Cpu = @import("./Cpu/cpu.zig").Cpu;
 
 // Helper to run one instruction

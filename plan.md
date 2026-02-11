@@ -2,9 +2,8 @@
 
 ## To Do
 
-- [ ] use addwithoverflow in execute functions
-- [ ] fix tests
-- [ ] all instruction tests
+- [x] use addwithoverflow in execute functions
+- [x] fix tests
 - [ ] rom loading
 - [ ] timing
 - [ ] split up helpers
