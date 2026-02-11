@@ -2,9 +2,10 @@
 
 ## To Do
 
-- [ ] rom loading
 - [ ] timing
 - [ ] MCB2 and MCB3
+- [ ] sort out bus read and write structure
+- [ ] sort out load rom with new IO
 
 ## Done
 
@@ -26,4 +27,6 @@
 - [x] JR variable cycles
 - [x] use addwithoverflow in execute functions
 - [x] fix tests
+- [x] rom loading
+
 

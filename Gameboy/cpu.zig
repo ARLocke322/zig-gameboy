@@ -4,6 +4,7 @@ const helpers = @import("helpers.zig");
 
 const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
+const InterruptController = @import("interrupt_controller.zig").InterruptController;
 
 pub const Cpu = struct {
     AF: Register,
@@ -16,8 +17,11 @@ pub const Cpu = struct {
     mem: *Bus,
 
     IME: bool,
+    IME_scheduled: bool,
 
-    pub fn init(mem: *Bus) Cpu {
+    interrupt_controller: *InterruptController,
+
+    pub fn init(mem: *Bus, interrupt_controller: *InterruptController) Cpu {
         return Cpu{
             .AF = Register.init(0),
             .BC = Register.init(0),
@@ -27,6 +31,8 @@ pub const Cpu = struct {
             .PC = Register.init(0),
             .mem = mem,
             .IME = false,
+            .IME_scheduled = false,
+            .interrupt_controller = interrupt_controller,
         };
     }
 
@@ -39,6 +45,35 @@ pub const Cpu = struct {
         const cycles: u8 = execute(self, instruction);
         std.debug.print("Cycles: {x}\n", .{cycles});
         return cycles;
+    }
+
+    pub fn handle_interrupt(self: *Cpu) void {
+        const pending = self.interrupt_controller.get_pending();
+
+        var interrupt_bit: u3 = 0;
+        if (pending & 0x01 != 0) {
+            interrupt_bit = 0;
+        } // VBlank
+        else if (pending & 0x02 != 0) {
+            interrupt_bit = 1;
+        } // LCD STAT
+        else if (pending & 0x04 != 0) {
+            interrupt_bit = 2;
+        } // Timer
+        else if (pending & 0x08 != 0) {
+            interrupt_bit = 3;
+        } // Serial
+        else if (pending & 0x10 != 0) {
+            interrupt_bit = 4;
+        } // Joypad
+        else return; // No interrupt (shouldn't happen)
+
+        self.IME = false;
+        self.interrupt_controller.acknowledge(interrupt_bit);
+        self.sp_push_16(self.PC.getHiLo());
+
+        const vector: u16 = 0x0040 + @as(u16, interrupt_bit) * 8;
+        self.PC.set(vector);
     }
 
     pub fn pc_pop_16(self: *Cpu) u16 {
