@@ -1,29 +1,46 @@
 const Cpu = @import("cpu.zig").Cpu;
 const Bus = @import("bus.zig").Bus;
-const Cartridge = @import("../Cartridge/MBC0.zig").MBC0;
+const Cartridge = @import("../Cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
+const std = @import("std");
 
 pub const Console = struct {
+    allocator: std.mem.Allocator,
     interrupt_controller: *InterruptController,
     timer: *Timer,
     bus: *Bus,
     cpu: *Cpu,
     cycles: u64,
 
-    pub fn init(cart: *Cartridge) Console {
-        var interrupt_controller = InterruptController.init();
-        var timer = Timer.init(&interrupt_controller);
-        var bus = Bus.init(cart, &timer, &interrupt_controller);
-        var cpu = Cpu.init(&bus, &interrupt_controller);
+    pub fn init(allocator: std.mem.Allocator, cart: *Cartridge) !Console {
+        const ic = try allocator.create(InterruptController);
+        ic.* = InterruptController.init();
+
+        const timer = try allocator.create(Timer);
+        timer.* = Timer.init(ic);
+
+        const bus = try allocator.create(Bus);
+        bus.* = Bus.init(cart, timer, ic);
+
+        const cpu = try allocator.create(Cpu);
+        cpu.* = Cpu.init(bus, ic);
 
         return Console{
-            .interrupt_controller = &interrupt_controller,
-            .timer = &timer,
-            .bus = &bus,
-            .cpu = &cpu,
+            .allocator = allocator,
+            .interrupt_controller = ic,
+            .timer = timer,
+            .bus = bus,
+            .cpu = cpu,
             .cycles = 0,
         };
+    }
+
+    pub fn deinit(self: *Console) void {
+        self.allocator.destroy(self.cpu);
+        self.allocator.destroy(self.bus);
+        self.allocator.destroy(self.timer);
+        self.allocator.destroy(self.interrupt_controller);
     }
 
     pub fn step(self: *Console) u8 {

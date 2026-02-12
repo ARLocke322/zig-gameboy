@@ -1,4 +1,5 @@
 const Cpu = @import("cpu.zig").Cpu;
+const std = @import("std");
 const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
 const x = @import("functions.zig");

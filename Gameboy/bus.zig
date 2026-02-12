@@ -1,5 +1,5 @@
 const std = @import("std");
-const MCB0 = @import("../Cartridge/MBC0.zig").MBC0;
+const MCB0 = @import("../Cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 
@@ -63,9 +63,9 @@ pub const Bus = struct {
 
     pub fn write8(self: *Bus, address: u16, value: u8) void {
         switch (address) {
-            0x0000...0x7FFF => {}, //self.cartridge.write8(address, value),
+            0x0000...0x7FFF => self.cartridge.write8(address, value),
             0x8000...0x9FFF => self.vram[address - 0x8000] = value,
-            0xA000...0xBFFF => {}, //self.cartridge.write8(address, value),
+            0xA000...0xBFFF => self.cartridge.write8(address, value),
             0xC000...0xCFFF => self.wram_0[address - 0xC000] = value,
             0xD000...0xDFFF => self.wram_n[address - 0xD000] = value,
             0xE000...0xFDFF => {},

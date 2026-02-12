@@ -44,6 +44,7 @@ pub const Cpu = struct {
         std.debug.print("Executing: {x}\n", .{instruction});
         const cycles: u8 = execute(self, instruction);
         std.debug.print("Cycles: {x}\n", .{cycles});
+        std.debug.print("Acc: {x}\n", .{self.AF.getHi()});
         return cycles;
     }
 

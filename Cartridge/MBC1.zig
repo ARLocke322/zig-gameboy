@@ -1,7 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 
-const MBC1 = struct {
+pub const MBC1 = struct {
     allocator: std.mem.Allocator,
 
     rom: []u8,
@@ -41,14 +41,14 @@ const MBC1 = struct {
         return switch (addr) {
             0x0000...0x3FFF => self.rom[addr],
             0x4000...0x7FFF => {
-                const ix = addr + ((self.rom_bank - 1) * 0x4000);
+                const ix = addr + ((@as(u16, self.rom_bank) - 1) * 0x4000);
                 assert(ix < self.rom.len);
                 return self.rom[ix];
             },
             0xA000...0xBFFF => {
-                if (!self.ram_enabled || self.ram.len == 0) return 0xFF;
+                if (!self.ram_enabled or self.ram.len == 0) return 0xFF;
 
-                const ix = (addr - 0xA000) + (self.ram_bank * 0x2000);
+                const ix = (addr - 0xA000) + (@as(u16, self.ram_bank) * 0x2000);
                 assert(ix < self.ram.len);
                 return self.ram[ix];
             },
@@ -65,8 +65,8 @@ const MBC1 = struct {
                 } else self.ram_enabled = false;
             },
             0x2000...0x3FFF => {
-                const num_banks = self.rom.len / 0x4000;
-                const masked_val = val & (num_banks - 1);
+                const num_banks: usize = self.rom.len / 0x4000;
+                const masked_val: u8 = val & (@as(u8, @truncate(num_banks)) - 1);
                 if (masked_val == 0x00) {
                     self.rom_bank = (self.rom_bank & 0x60) | 0x1;
                 } else self.rom_bank = (self.rom_bank & 0x60) | masked_val;
@@ -75,7 +75,7 @@ const MBC1 = struct {
             0x4000...0x5FFF => {
                 if (self.rom_banking) {
                     self.rom_bank = ((val & 0x03) << 5) | (self.rom_bank & 0x1F);
-                } else self.ram_bank = (val & 0x3);
+                } else self.ram_bank = @truncate(val & 0x3);
             },
             0x6000...0x7FFF => {
                 self.rom_banking = (val & 0x1 == 0x0);
@@ -87,7 +87,7 @@ const MBC1 = struct {
 
     pub fn write8RAM(self: *MBC1, addr: u16, val: u8) void {
         if (self.ram_enabled) {
-            const ix = (addr - 0xA000) + (self.ram_bank * 0x2000);
+            const ix = (addr - 0xA000) + (@as(u16, self.ram_bank) * 0x2000);
             assert(ix < self.ram.len);
             self.ram[ix] = val;
         }
