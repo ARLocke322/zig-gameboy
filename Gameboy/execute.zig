@@ -1,4 +1,5 @@
 const Cpu = @import("cpu.zig").Cpu;
+const std = @import("std");
 const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
 const x = @import("functions.zig");
@@ -548,7 +549,7 @@ fn LD_SP_HL(cpu: *Cpu) u8 {
 
 // change to after following instruction
 pub fn EI(cpu: *Cpu) u8 {
-    cpu.IME = true;
+    cpu.IME_scheduled = true;
     return 1;
 }
 

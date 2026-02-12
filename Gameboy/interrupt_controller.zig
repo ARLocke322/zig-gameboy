@@ -22,6 +22,7 @@ pub const InterruptController = struct {
         return switch (addr) {
             0xFFFF => self.IE,
             0xFF0F => self.IF,
+            else => unreachable,
         };
     }
 

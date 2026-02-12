@@ -1,4 +1,4 @@
-const InterruptController = @import("interrupt_controller.zig").Bus;
+const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const assert = @import("std").debug.assert;
 
 pub const Timer = struct {
@@ -53,12 +53,12 @@ pub const Timer = struct {
 
         if (self.TAC & 0x04 != 0) {
             self.tima_counter += cycles;
-            const increment_rate = get_clock_select(self.TAC & 0x03);
+            const increment_rate = get_clock_select(@truncate(self.TAC & 0x03));
             if (self.tima_counter >= increment_rate) {
                 self.tima_counter -= increment_rate;
                 if (self.TIMA == 0xFF) {
                     self.TIMA = self.TMA;
-                    // TODO: Set interrupt flag (bit 2 of IF register)
+                    self.interrupt_controller.request(InterruptController.TIMER);
                 } else {
                     self.TIMA += 1;
                 }
