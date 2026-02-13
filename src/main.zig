@@ -1,9 +1,9 @@
-const Cartridge = @import("./Cartridge/MBC1.zig").MBC1;
-const Console = @import("./Gameboy/console.zig").Console;
-const Cpu = @import("./Gameboy/cpu.zig").Cpu;
-const Bus = @import("./Gameboy/bus.zig").Bus;
-const Timer = @import("./Gameboy/timer.zig").Timer;
-const InterruptController = @import("./Gameboy/interrupt_controller.zig").InterruptController;
+const Cartridge = @import("./cartridge/MBC1.zig").MBC1;
+const Console = @import("./gameboy/console.zig").Console;
+const Cpu = @import("./gameboy/cpu.zig").Cpu;
+const Bus = @import("./gameboy/bus.zig").Bus;
+const Timer = @import("./gameboy/timer.zig").Timer;
+const InterruptController = @import("./gameboy/interrupt_controller.zig").InterruptController;
 const std = @import("std");
 
 const zig_gameboy = @import("zig_gameboy");

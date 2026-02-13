@@ -1,5 +1,5 @@
 const std = @import("std");
-const MCB0 = @import("../Cartridge/MBC1.zig").MBC1;
+const MCB0 = @import("../cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 
@@ -40,7 +40,14 @@ pub const Bus = struct {
             0xA000...0xBFFF => self.cartridge.read8(address),
             0xC000...0xCFFF => self.wram_0[address - 0xC000],
             0xD000...0xDFFF => self.wram_n[address - 0xD000],
-            0xE000...0xFDFF => self.wram_0[address - 0xE000],
+            0xE000...0xFDFF => blk: {
+                const mirrored = address - 0x2000; // 0xE000 -> 0xC000
+                if (mirrored < 0xD000) {
+                    break :blk self.wram_0[mirrored - 0xC000];
+                } else {
+                    break :blk self.wram_n[mirrored - 0xD000];
+                }
+            },
             0xFE00...0xFE9F => self.oam[address - 0xFE00],
             0xFEA0...0xFEFF => 0xFF,
 

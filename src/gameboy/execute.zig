@@ -4,7 +4,9 @@ const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
 const x = @import("functions.zig");
 const helpers = @import("helpers.zig");
-const CB_PREFIX = @import("./CB.zig").CB_PREFIX;
+const CB_PREFIX = @import("./cb.zig").CB_PREFIX;
+const halfCarryAdd = @import("./functions.zig").halfCarryAdd;
+const halfCarrySub = @import("./functions.zig").halfCarrySub;
 
 pub fn execute(cpu: *Cpu, instruction: u8) u8 {
     return switch (instruction) {
@@ -220,7 +222,14 @@ fn INC_r8(cpu: *Cpu, opcode: u8) u8 {
 
 fn INC_HL_mem(cpu: *Cpu) u8 {
     const addr: u16 = cpu.HL.getHiLo();
-    cpu.mem.write8(addr, cpu.mem.read8(addr) + 1);
+    const current: u8 = cpu.mem.read8(addr);
+
+    const result = current +% 1;
+    cpu.mem.write8(addr, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(current), @truncate(1), 0));
     return 3;
 }
 
@@ -232,7 +241,14 @@ fn DEC_r8(cpu: *Cpu, opcode: u8) u8 {
 
 fn DEC_HL_mem(cpu: *Cpu) u8 {
     const addr: u16 = cpu.HL.getHiLo();
-    cpu.mem.write8(addr, cpu.mem.read8(addr) - 1);
+    const current: u8 = cpu.mem.read8(addr);
+
+    const result = current +% 1;
+    cpu.mem.write8(addr, result);
+
+    cpu.set_z(result == 0);
+    cpu.set_n(true);
+    cpu.set_h(halfCarrySub(@truncate(current), @truncate(1), 0));
     return 3;
 }
 
@@ -297,8 +313,9 @@ fn JR_n8(cpu: *Cpu) u8 {
 }
 
 fn JR_cond_n8(cpu: *Cpu, opcode: u8) u8 {
+    const offset = cpu.pc_pop_8();
     if (helpers.check_condition(cpu, @truncate(opcode >> 3))) {
-        x.execJumpRelative(cpu, @bitCast(cpu.pc_pop_8()));
+        x.execJumpRelative(cpu, @bitCast(offset));
         return 3;
     } else {
         return 2;
