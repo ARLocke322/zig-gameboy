@@ -46,6 +46,10 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0x37 => SCF(cpu),
         0x3F => CCF(cpu),
 
+        0x18 => JR_n8(cpu),
+        0x20, 0x28, 0x30, 0x38 => JR_cond_n8(cpu, instruction),
+        0x10 => STOP(),
+
         // BLOCK 1
         0x76 => HALT(),
         0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x7E => LD_r8_HL(cpu, instruction),
@@ -122,7 +126,10 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0xF3 => DI(cpu),
         0xFB => EI(cpu),
 
-        else => 0x00,
+        else => {
+            std.debug.print("UNIMPLEMENTED OPCODE: 0x{X:0>2} at PC: 0x{X:0>4}\n", .{ instruction, cpu.PC.getHiLo() - 1 });
+            unreachable;
+        },
     };
 }
 
@@ -207,7 +214,7 @@ fn LD_HL_mem_n8(cpu: *Cpu) u8 {
 
 fn INC_r8(cpu: *Cpu, opcode: u8) u8 {
     const r = helpers.get_r8(cpu, @truncate(opcode >> 3));
-    x.execInc8(r.reg, r.set, r.get(r.reg));
+    x.execInc8(cpu, r.reg, r.set, r.get(r.reg));
     return 1;
 }
 
@@ -219,7 +226,7 @@ fn INC_HL_mem(cpu: *Cpu) u8 {
 
 fn DEC_r8(cpu: *Cpu, opcode: u8) u8 {
     const r = helpers.get_r8(cpu, @truncate(opcode >> 3));
-    x.execDec8(r.reg, r.set, r.get(r.reg));
+    x.execDec8(cpu, r.reg, r.set, r.get(r.reg));
     return 1;
 }
 
@@ -282,6 +289,23 @@ fn CCF(cpu: *Cpu) u8 {
     cpu.set_h(false);
     cpu.set_c(~cpu.get_c() == 1);
     return 1;
+}
+
+fn JR_n8(cpu: *Cpu) u8 {
+    x.execJumpRelative(cpu, @bitCast(cpu.pc_pop_8()));
+    return 3;
+}
+
+fn JR_cond_n8(cpu: *Cpu, opcode: u8) u8 {
+    if (helpers.check_condition(cpu, @truncate(opcode >> 3))) {
+        x.execJumpRelative(cpu, @bitCast(cpu.pc_pop_8()));
+        return 3;
+    } else {
+        return 2;
+    }
+}
+fn STOP() u8 {
+    return 2;
 }
 
 fn LD_r8_r8(cpu: *Cpu, opcode: u8) u8 {

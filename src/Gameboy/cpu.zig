@@ -28,7 +28,7 @@ pub const Cpu = struct {
             .DE = Register.init(0),
             .HL = Register.init(0),
             .SP = Register.init(0),
-            .PC = Register.init(0),
+            .PC = Register.init(0x0100),
             .mem = mem,
             .IME = false,
             .IME_scheduled = false,
@@ -41,10 +41,7 @@ pub const Cpu = struct {
     }
 
     pub fn decode_execute(self: *Cpu, instruction: u8) u8 {
-        std.debug.print("Executing: {x}\n", .{instruction});
         const cycles: u8 = execute(self, instruction);
-        std.debug.print("Cycles: {x}\n", .{cycles});
-        std.debug.print("Acc: {x}\n", .{self.AF.getHi()});
         return cycles;
     }
 

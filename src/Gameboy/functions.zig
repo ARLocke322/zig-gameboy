@@ -1,6 +1,7 @@
 const Cpu = @import("cpu.zig").Cpu;
 const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
+const std = @import("std");
 
 fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
     const hc1 = @addWithOverflow(a, b);
@@ -102,7 +103,7 @@ pub fn execInc16(
     set: *const fn (@TypeOf(ctx), u16) void,
     current: u16,
 ) void {
-    set(ctx, current + 1);
+    set(ctx, @addWithOverflow(current, 1)[0]);
 }
 
 pub fn execDec16(
@@ -110,23 +111,36 @@ pub fn execDec16(
     set: *const fn (@TypeOf(ctx), u16) void,
     current: u16,
 ) void {
-    set(ctx, current - 1);
+    set(ctx, @subWithOverflow(current, 1)[0]);
 }
 
 pub fn execInc8(
+    cpu: *Cpu,
     ctx: anytype,
     set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
 ) void {
-    set(ctx, current + 1);
+    const result = @addWithOverflow(current, 1);
+    set(ctx, result[0]);
+
+    cpu.set_z(result[0] == 0);
+    cpu.set_n(false);
+    cpu.set_h(halfCarryAdd(@truncate(current), @truncate(1), 0));
 }
 
 pub fn execDec8(
+    cpu: *Cpu,
     ctx: anytype,
     set: *const fn (@TypeOf(ctx), u8) void,
     current: u8,
 ) void {
-    set(ctx, current - 1);
+    const result = @subWithOverflow(current, 1);
+
+    set(ctx, result[0]);
+
+    cpu.set_z(result[0] == 0);
+    cpu.set_n(true);
+    cpu.set_h(halfCarrySub(@truncate(current), @truncate(1), 0));
 }
 
 pub fn execRotateLeft(
@@ -171,6 +185,11 @@ pub fn execRotateRight(
 
 pub fn execJump(cpu: *Cpu, val: u16) void {
     cpu.PC.set(val);
+}
+
+pub fn execJumpRelative(cpu: *Cpu, val: i8) void {
+    const new_addr: u16 = cpu.PC.getHiLo() +% @as(u16, @bitCast(@as(i16, val)));
+    cpu.PC.set(new_addr);
 }
 
 pub fn execCall(cpu: *Cpu, val: u16) void {

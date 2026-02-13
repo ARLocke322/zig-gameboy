@@ -49,12 +49,12 @@ pub const Bus = struct {
 
             // Interrupt controller
             0xFF0F => self.interrupts.read8(address),
-
             // Other I/O (split around specific registers)
             0xFF00...0xFF03 => 0xFF,
             0xFF08...0xFF0E => 0xFF,
-            0xFF10...0xFF7F => 0xFF,
+            0xFF10...0xFF43, 0xFF45...0xFF7F => 0xFF,
 
+            0xFF44 => return 0x90, // Always report VBlank (scanline 144)
             // HRAM and IE
             0xFF80...0xFFFE => self.hram[address - 0xFF80],
             0xFFFF => self.interrupts.read8(address),
@@ -65,7 +65,7 @@ pub const Bus = struct {
         switch (address) {
             0x0000...0x7FFF => self.cartridge.write8(address, value),
             0x8000...0x9FFF => self.vram[address - 0x8000] = value,
-            0xA000...0xBFFF => self.cartridge.write8(address, value),
+            0xA000...0xBFFF => self.cartridge.write8RAM(address, value),
             0xC000...0xCFFF => self.wram_0[address - 0xC000] = value,
             0xD000...0xDFFF => self.wram_n[address - 0xD000] = value,
             0xE000...0xFDFF => {},
