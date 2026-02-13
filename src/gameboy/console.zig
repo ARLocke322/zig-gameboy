@@ -1,6 +1,6 @@
 const Cpu = @import("cpu.zig").Cpu;
 const Bus = @import("bus.zig").Bus;
-const Cartridge = @import("../Cartridge/MBC1.zig").MBC1;
+const Cartridge = @import("../cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const std = @import("std");
@@ -53,8 +53,9 @@ pub const Console = struct {
             _ = self.step();
             count += 1;
 
+            // std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
+            // std.debug.print("Opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
             if (count > 50_000_000) {
-                std.debug.print("MEM 0x0746: {x:0>4}\n", .{self.bus.read8(0x0746)});
                 std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
                 std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
                 break;

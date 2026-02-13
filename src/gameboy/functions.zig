@@ -3,13 +3,13 @@ const Register = @import("register.zig").Register;
 const Bus = @import("bus.zig").Bus;
 const std = @import("std");
 
-fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
+pub fn halfCarryAdd(a: u4, b: u4, c: u1) bool {
     const hc1 = @addWithOverflow(a, b);
     const hc2 = @addWithOverflow(hc1[0], c);
     return hc1[1] == 1 or hc2[1] == 1;
 }
 
-fn halfCarrySub(a: u4, b: u4, c: u1) bool {
+pub fn halfCarrySub(a: u4, b: u4, c: u1) bool {
     const hc1 = @subWithOverflow(a, b);
     const hc2 = @subWithOverflow(hc1[0], c);
     return hc1[1] == 1 or hc2[1] == 1;
