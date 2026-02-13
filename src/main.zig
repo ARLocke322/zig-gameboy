@@ -1,27 +1,33 @@
 const Cartridge = @import("./Cartridge/MBC1.zig").MBC1;
 const Console = @import("./Gameboy/console.zig").Console;
+const Cpu = @import("./Gameboy/cpu.zig").Cpu;
+const Bus = @import("./Gameboy/bus.zig").Bus;
+const Timer = @import("./Gameboy/timer.zig").Timer;
+const InterruptController = @import("./Gameboy/interrupt_controller.zig").InterruptController;
 const std = @import("std");
 
-pub fn main() !void {
-    // Read Argv for file path
-    var args = std.process.args();
-    _ = args.skip();
-    const path: [:0]const u8 = args.next() orelse return error.MissingArgs;
+const zig_gameboy = @import("zig_gameboy");
 
+pub fn main(init: std.process.Init) !void {
     // Initialise allocator
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator: std.mem.Allocator = gpa.allocator();
+
+    // Read Argv for file path
+    var args = try init.minimal.args.iterateAllocator(allocator);
+    _ = args.skip();
+    const path: [:0]const u8 = args.next() orelse return error.MissingArgs;
+
+    // Initialise IO implementation
+    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = init.minimal.environ });
+    const io = threaded.io();
+    defer threaded.deinit();
 
     // Allocate buffer to store ROM
     const buffer = try allocator.alloc(u8, 4 * 1024 * 1024);
     defer allocator.free(buffer);
 
-    // Initialise IO implementation
-    var threaded: std.Io.Threaded = .init(allocator, .{});
-    const io = threaded.io();
-    defer threaded.deinit();
-
-    // Load ROM into buffer and initialise Cartridge object
+    // Load ROM into buffer
     const rom_buffer = try load_file_into_buffer(allocator, io, path, buffer);
     defer allocator.free(rom_buffer);
 
@@ -29,9 +35,13 @@ pub fn main() !void {
     var cart = try Cartridge.init(allocator, rom_buffer, get_ram_bytes(buffer[0x0149]));
     defer cart.deinit();
 
+    var interrupt_controller = InterruptController.init();
+    var timer = Timer.init(&interrupt_controller);
+    var bus = Bus.init(&cart, &timer, &interrupt_controller);
+    var cpu = Cpu.init(&bus, &interrupt_controller);
+
     // Initialise console and run
-    var gb = try Console.init(allocator, &cart);
-    defer gb.deinit();
+    var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu);
     gb.run();
 
     // Check result
@@ -43,16 +53,6 @@ pub fn main() !void {
     } else {
         std.debug.print("✗ FAILED with code: 0x{X:0>2}\n", .{result});
     }
-
-    // Print test output message (starts at 0xA004)
-    std.debug.print("Test output: ", .{});
-    var addr: u16 = 0xA004;
-    while (addr < 0xA0FF) : (addr += 1) {
-        const byte = gb.bus.read8(addr);
-        if (byte == 0) break; // Null terminator
-        std.debug.print("{c}", .{byte});
-    }
-    std.debug.print("\n", .{});
 }
 
 fn load_file_into_buffer(

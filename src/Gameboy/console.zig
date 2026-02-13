@@ -6,41 +6,25 @@ const InterruptController = @import("interrupt_controller.zig").InterruptControl
 const std = @import("std");
 
 pub const Console = struct {
-    allocator: std.mem.Allocator,
     interrupt_controller: *InterruptController,
     timer: *Timer,
     bus: *Bus,
     cpu: *Cpu,
     cycles: u64,
 
-    pub fn init(allocator: std.mem.Allocator, cart: *Cartridge) !Console {
-        const ic = try allocator.create(InterruptController);
-        ic.* = InterruptController.init();
-
-        const timer = try allocator.create(Timer);
-        timer.* = Timer.init(ic);
-
-        const bus = try allocator.create(Bus);
-        bus.* = Bus.init(cart, timer, ic);
-
-        const cpu = try allocator.create(Cpu);
-        cpu.* = Cpu.init(bus, ic);
-
+    pub fn init(
+        interrupt_controller: *InterruptController,
+        timer: *Timer,
+        bus: *Bus,
+        cpu: *Cpu,
+    ) Console {
         return Console{
-            .allocator = allocator,
-            .interrupt_controller = ic,
+            .interrupt_controller = interrupt_controller,
             .timer = timer,
             .bus = bus,
             .cpu = cpu,
             .cycles = 0,
         };
-    }
-
-    pub fn deinit(self: *Console) void {
-        self.allocator.destroy(self.cpu);
-        self.allocator.destroy(self.bus);
-        self.allocator.destroy(self.timer);
-        self.allocator.destroy(self.interrupt_controller);
     }
 
     pub fn step(self: *Console) u8 {
@@ -64,9 +48,17 @@ pub const Console = struct {
     }
 
     pub fn run(self: *Console) void {
+        var count: u64 = 0;
         while (true) {
             _ = self.step();
-            if (self.bus.read8(0xA000) != 0) break;
+            count += 1;
+
+            if (count > 50_000_000) {
+                std.debug.print("MEM 0x0746: {x:0>4}\n", .{self.bus.read8(0x0746)});
+                std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
+                std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
+                break;
+            }
         }
     }
 };
