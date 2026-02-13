@@ -1,6 +1,6 @@
 const std = @import("std");
-const Bus = @import("Cpu/bus.zig").Bus;
-const Cpu = @import("./Cpu/cpu.zig").Cpu;
+const Bus = @import("./Gameboy/bus.zig").Bus;
+const Cpu = @import("./Gameboy/cpu.zig").Cpu;
 
 // Helper to run one instruction
 fn runOne(bus: *Bus, cpu: *Cpu, opcode: u8) void {
