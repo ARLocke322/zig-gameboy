@@ -2,6 +2,7 @@ const std = @import("std");
 const MCB0 = @import("../cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
+const Ppu = @import("ppu.zig").Ppu;
 
 pub const Bus = struct {
     vram: [0x2000]u8, // 0x8000-0x9FFF: 8 KiB VRAM
@@ -13,6 +14,7 @@ pub const Bus = struct {
     cartridge: *MCB0,
     timer: *Timer,
     interrupts: *InterruptController,
+    ppu: *Ppu,
     // joypad: *Joypad,  // future
     // ppu: *PPU,        // future
     // apu: *APU,        // future
@@ -21,6 +23,7 @@ pub const Bus = struct {
         cartridge: *MCB0,
         timer: *Timer,
         interrupts: *InterruptController,
+        ppu: *Ppu,
     ) Bus {
         return Bus{
             .vram = [_]u8{0} ** 0x2000,
@@ -31,6 +34,7 @@ pub const Bus = struct {
             .cartridge = cartridge,
             .timer = timer,
             .interrupts = interrupts,
+            .ppu = ppu,
         };
     }
     pub fn read8(self: *Bus, address: u16) u8 {
