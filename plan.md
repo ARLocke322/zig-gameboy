@@ -5,9 +5,8 @@
 - [ ] timing
 - [ ] MCB2 and MCB3
 - [ ] sort out bus read and write structure
-- [ ] sort out load rom with new IO
 - [ ] fix test rom
-- [ ] refactor component structure re pointers
+- [ ] ppu
 
 ## Done
 
@@ -30,3 +29,10 @@
 - [x] use addwithoverflow in execute functions
 - [x] fix tests
 - [x] rom loading
+- [x] refactor component structure re pointers
+- [x] sort out load rom with new IO
+
+## Cycle accurate stuff
+
+- [ ] cpu instructions
+- [ ] ppu dma
