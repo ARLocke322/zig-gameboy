@@ -33,6 +33,8 @@ pub const Ppu = struct {
     latched_wy: u8 = 0,
     latched_wx: u8 = 0,
 
+    const PALETTE: [4]u32 = .{ 0xFFE0F8D0, 0xFF88C070, 0xFF346856, 0xFF081820 };
+
     pub fn init(interrupt_controller: *InterruptController) Ppu {
         return Ppu{
             .tile_data = [_]u8{0} ** 0x1800,
@@ -179,7 +181,53 @@ pub const Ppu = struct {
     }
 
     fn render_scanline(self: *Ppu) void {
-        self.render_background;
+        self.render_background();
+        if ((self.latched_lcd_control & 0x20) != 0 and
+            self.ly >= self.latched_wy and
+            self.latched_wx <= 159) self.render_window();
+        if ((self.latched_lcd_control & 0x2) != 0) self.render_sprites();
+    }
+
+    fn render_background(self: *Ppu) void {
+        const map_base = if (self.latched_lcd_control & 0x08 != 0) 0x9C00 else 0x9800;
+        const tile_base = if (self.latched_lcd_control & 0x10 != 0) 0x8000 else 0x9000;
+        const use_unsigned_tiles = (self.latched_lcd_control & 0x10) != 0;
+
+        var palette: [4]u32 = undefined;
+        for (0..4) |i| {
+            palette[i] = self.PALETTE[(self.latched_bgp >> @intCast(i * 2)) & 3];
+        }
+
+        for (0..160) |x| {
+            const map_x: u8 = x +% self.latched_scx;
+            const map_y: u8 = self.ly +% self.latched_scy;
+            //
+            // const tile_col = map_x / 8;
+            // const tile_row = map_y / 8;
+            // const tilemap_addr = map_base + tile_row * 32 + tile_col;
+            // const tile_id = self.read8(tilemap_addr);
+
+            // const tile_addr = tile_base ;
+            //
+
+            const tile_idx_addr = map_base + (map_y / 8) * 32 + (map_x / 8);
+            const tile_idx = self.read8(tile_idx_addr);
+            const tile_addr = tile_base + tile_idx * 16;
+            const row = map_y % 8;
+            const b1 = self.read8(tile_addr + row * 2);
+            const b2 = self.read8(tile_addr + row * 2 + 1);
+            const bit = 7 - (map_x % 8);
+            const color_id = ((b1 >> bit) & 1) | (((b2 >> bit) & 1) << 1);
+            self.screen_buffer[self.window_line * 160 + x] = palette[color_id];
+        }
+    }
+
+    fn render_window(self: *Ppu) void {
+        for (0..160) |x| {
+            if (x >= self.latched_wx) {
+                self.wx = x - self.latched_wx;
+            }
+        }
     }
 
     fn set_ppu_mode(self: *Ppu, mode: u2) void {
