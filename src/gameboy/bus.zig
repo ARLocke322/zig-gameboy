@@ -40,7 +40,7 @@ pub const Bus = struct {
     pub fn read8(self: *Bus, address: u16) u8 {
         return switch (address) {
             0x0000...0x7FFF => self.cartridge.read8(address),
-            0x8000...0x9FFF => self.vram[address - 0x8000],
+            0x8000...0x9FFF => self.ppu.read8(address),
             0xA000...0xBFFF => self.cartridge.read8(address),
             0xC000...0xCFFF => self.wram_0[address - 0xC000],
             0xD000...0xDFFF => self.wram_n[address - 0xD000],
@@ -52,7 +52,7 @@ pub const Bus = struct {
                     break :blk self.wram_n[mirrored - 0xD000];
                 }
             },
-            0xFE00...0xFE9F => self.oam[address - 0xFE00],
+            0xFE00...0xFE9F => self.ppu.read8(address),
             0xFEA0...0xFEFF => 0xFF,
 
             // Timer registers

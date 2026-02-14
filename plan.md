@@ -31,3 +31,8 @@
 - [x] rom loading
 - [x] refactor component structure re pointers
 - [x] sort out load rom with new IO
+
+## Cycle accurate stuff
+
+- [ ] cpu instructions
+- [ ] ppu dma

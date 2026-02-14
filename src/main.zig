@@ -2,6 +2,7 @@ const Cartridge = @import("./cartridge/MBC1.zig").MBC1;
 const Console = @import("./gameboy/console.zig").Console;
 const Cpu = @import("./gameboy/cpu.zig").Cpu;
 const Bus = @import("./gameboy/bus.zig").Bus;
+const Ppu = @import("./gameboy/ppu.zig").Ppu;
 const Timer = @import("./gameboy/timer.zig").Timer;
 const InterruptController = @import("./gameboy/interrupt_controller.zig").InterruptController;
 const std = @import("std");
@@ -9,19 +10,14 @@ const std = @import("std");
 const zig_gameboy = @import("zig_gameboy");
 
 pub fn main(init: std.process.Init) !void {
-    // Initialise allocator
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator: std.mem.Allocator = gpa.allocator();
+    // Initialise allocator + io
+    const allocator: std.mem.Allocator = init.gpa;
+    const io: std.Io = init.io;
 
     // Read Argv for file path
     var args = try init.minimal.args.iterateAllocator(allocator);
     _ = args.skip();
     const path: [:0]const u8 = args.next() orelse return error.MissingArgs;
-
-    // Initialise IO implementation
-    var threaded: std.Io.Threaded = .init(allocator, .{ .environ = init.minimal.environ });
-    const io = threaded.io();
-    defer threaded.deinit();
 
     // Allocate buffer to store ROM
     const buffer = try allocator.alloc(u8, 4 * 1024 * 1024);
@@ -37,7 +33,8 @@ pub fn main(init: std.process.Init) !void {
 
     var interrupt_controller = InterruptController.init();
     var timer = Timer.init(&interrupt_controller);
-    var bus = Bus.init(&cart, &timer, &interrupt_controller);
+    var ppu = Ppu.init();
+    var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu);
     var cpu = Cpu.init(&bus, &interrupt_controller);
 
     // Initialise console and run
