@@ -41,12 +41,14 @@ pub const MBC2 = struct {
                 assert(ix < self.rom.len);
                 return self.rom[ix];
             },
-            0xA000...0xA1FF => if (self.ram_enabled) {
-                @as(u8, self.ram[addr - 0xA000]);
-            } else 0xFF,
-            0xA200...0xBFFF => if (self.ram_enabled) {
-                @as(u8, self.ram[(addr - 0xA200) & 0x01FF]); // only bottom 9
-            } else 0xFF,
+            0xA000...0xA1FF => if (self.ram_enabled)
+                @as(u8, self.ram[addr - 0xA000])
+            else
+                0xFF,
+            0xA200...0xBFFF => if (self.ram_enabled)
+                @as(u8, self.ram[(addr - 0xA200) & 0x01FF]) // only bottom 9
+            else
+                0xFF,
             else => unreachable,
         };
     }
@@ -92,14 +94,89 @@ pub const MBC2 = struct {
 // TESTS
 
 test "should init with valid ram/rom sizes" {
-    const data = [_]u8{0x00} ** 0xC000;
-    var cart = try MBC2.init(std.testing.allocator, data[0..0xC000], 32);
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
     defer cart.deinit();
 
     try std.testing.expect(cart.rom[0] == 0x00);
-    try std.testing.expect(cart.rom[0xBFFF] == 0x00);
-    try std.testing.expect(cart.rom.len == 0xC000);
+    try std.testing.expect(cart.rom[0xEFFF] == 0x00);
+    try std.testing.expect(cart.rom.len == 0xF000);
     try std.testing.expect(cart.ram.len == 32);
     try std.testing.expect(cart.rom_bank == 1);
     try std.testing.expect(cart.ram_enabled == false);
+}
+
+test "should read from rom bank 0 correctly " {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xC000], 32);
+    defer cart.deinit();
+
+    cart.rom[0x0100] = 0x01;
+    try std.testing.expect(cart.read8(0x0100) == 0x01);
+}
+
+test "should read from rom bank 1 correctly " {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.rom[0x5000] = 0x01;
+    try std.testing.expect(cart.read8(0x5000) == 0x01);
+}
+
+test "should read from rom bank N correctly " {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.rom[0x9000] = 0x01;
+    cart.rom_bank = 2;
+    try std.testing.expect(cart.read8(0x5000) == 0x01);
+}
+
+test "should read from ram correctly" {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.ram[0x0001] = 0x01;
+    try std.testing.expect(cart.read8(0xA001) == 0xFF);
+    try std.testing.expect(cart.read8(0xB001) == 0xFF);
+
+    cart.write8(0x0000, 0xA);
+    try std.testing.expect(cart.read8(0xA001) == 0x01);
+    try std.testing.expect(cart.read8(0xB001) == 0x01);
+}
+
+test "should change rom banks correctly " {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.write8(0x0100, 0x2);
+
+    try std.testing.expect(cart.rom_bank == 0x02);
+}
+
+test "should enable ram correctly" {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.write8(0x0000, 0x1);
+    try std.testing.expect(cart.ram_enabled == false);
+
+    cart.write8(0x0000, 0xA);
+    try std.testing.expect(cart.ram_enabled == true);
+}
+
+test "should read correctly after changing rom banks" {
+    const data = [_]u8{0x00} ** 0xF000;
+    var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
+    defer cart.deinit();
+
+    cart.rom[0x9000] = 0x1;
+    cart.write8(0x0100, 0x2);
+
+    try std.testing.expect(cart.read8(0x5000) == 0x01);
 }
