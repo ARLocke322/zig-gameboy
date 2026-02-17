@@ -188,7 +188,9 @@ pub const Ppu = struct {
     }
 
     fn render_background(self: *Ppu) void {
+        // starting addr of background tilemap, 2 possible regions
         const map_base: u16 = if ((self.latched_lcd_control & 0x08) != 0) 0x9C00 else 0x9800;
+        // starting addr of tile, 2 possible tiles
         const tile_base: u16 = if ((self.latched_lcd_control & 0x10) != 0) 0x8000 else 0x9000;
         const use_unsigned_tiles = (self.latched_lcd_control & 0x10) != 0;
 
@@ -198,31 +200,10 @@ pub const Ppu = struct {
         }
 
         for (0..160) |x| {
-            const map_x: u8 = @as(u8, @intCast(x)) +% self.latched_scx;
+            // absolute x and y positions with scroll
+            const map_x: u8 = @as(u8, x) +% self.latched_scx;
             const map_y: u8 = self.ly +% self.latched_scy;
-
-            const tile_x: u8 = map_x / 8;
-            const tile_y: u8 = map_y / 8;
-
-            const tilemap_addr: u16 = map_base + @as(u16, tile_y) * 32 + tile_x;
-            const tile_idx = self.read8(tilemap_addr);
-
-            const tile_offset: i16 = if (use_unsigned_tiles)
-                @as(i16, tile_idx)
-            else
-                @as(i8, @bitCast(tile_idx));
-            const tile_addr = tile_base +% @as(u16, @bitCast(tile_offset * 16));
-
-            const pixel_x: u8 = map_x % 8;
-            const pixel_y: u8 = map_y % 8;
-
-            const byte1 = self.read8(tile_addr + pixel_y * 2);
-            const byte2 = self.read8(tile_addr + pixel_y * 2 + 1);
-
-            const bit_pos: u3 = @intCast(7 - pixel_x);
-            const color_id: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
-
-            self.display_buffer[self.ly * 160 + x] = palette[color_id];
+            self.render_pixel(map_base, tile_base, use_unsigned_tiles, palette, @as(u8, x), map_x, map_y);
         }
     }
 
@@ -235,41 +216,113 @@ pub const Ppu = struct {
             palette[i] = PALETTE[(self.latched_bgp >> @intCast(i * 2)) & 3];
         }
 
-        const window_x_start: i16 = @as(i16, self.latched_wx) - 7;
+        assert(self.latched_wx > 6);
+        const window_x_start: u16 = self.latched_wx - 7;
 
         for (0..160) |x| {
-            // Only render if past window X position
-            if (@as(i16, @intCast(x)) < window_x_start) continue;
-
-            const map_x: u8 = @as(u8, @intCast(@as(i16, @intCast(x)) - window_x_start));
+            if (@as(u8, x) < window_x_start) continue;
+            // absolute x, y positions in window
+            const map_x: u8 = @as(u8, x) - window_x_start;
             const map_y: u8 = self.window_line;
-            const tile_x: u8 = map_x / 8;
-            const tile_y: u8 = map_y / 8;
-            const tilemap_addr: u16 = map_base + @as(u16, tile_y) * 32 + tile_x;
-            const tile_idx = self.read8(tilemap_addr);
-            const tile_offset: i16 = if (use_unsigned_tiles)
-                @as(i16, tile_idx)
-            else
-                @as(i8, @bitCast(tile_idx));
-            const tile_addr = tile_base +% @as(u16, @bitCast(tile_offset * 16));
-            const pixel_x: u8 = map_x % 8;
-            const pixel_y: u8 = map_y % 8;
-            const byte1 = self.read8(tile_addr + pixel_y * 2);
-            const byte2 = self.read8(tile_addr + pixel_y * 2 + 1);
-            const bit_pos: u3 = @intCast(7 - pixel_x);
-            const color_id: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
-            self.display_buffer[self.ly * 160 + x] = palette[color_id];
+            self.render_pixel(map_base, tile_base, use_unsigned_tiles, palette, @as(u8, x), map_x, map_y);
         }
 
-        self.window_line += 1;
+        self.window_line +%= 1;
+    }
+
+    fn render_pixel(
+        self: *Ppu,
+        map_base: u16,
+        tile_base: u16,
+        use_unsigned_tiles: bool,
+        palette: [4]u32,
+        x: u8,
+        map_x: u8,
+        map_y: u8,
+    ) void {
+        // which tile the pixel falls in
+        const tile_x: u8 = @divFloor(map_x, 8);
+        const tile_y: u8 = @divFloor(map_y, 8);
+
+        // calculate tile index address and read it
+        const tilemap_addr: u16 = map_base + @as(u16, tile_y) * 32 + tile_x;
+        const tile_idx = self.read8(tilemap_addr); // e.g. we are drawing tile 4
+
+        // calculate offset based on lcd control + tile index
+        const tile_offset: i16 = if (use_unsigned_tiles)
+            @as(i16, tile_idx)
+        else
+            @as(i8, @bitCast(tile_idx));
+
+        // address of actual tiles pixel data, each tile is 16 bytes
+        const tile_addr: u16 = tile_base +% @as(u16, @bitCast(tile_offset * 16));
+
+        // which pixel in 8x8 tile
+        const pixel_x: u8 = map_x % 8;
+        const pixel_y: u8 = map_y % 8;
+
+        // the two bytes encoding the row of the tile
+        const byte1: u8 = self.read8(tile_addr + pixel_y * 2);
+        const byte2: u8 = self.read8(tile_addr + pixel_y * 2 + 1);
+
+        // calculate the pixels position in this row of bytes, then get the color idx
+        const bit_pos: u3 = @intCast(7 - pixel_x);
+        const color_idx: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
+
+        self.display_buffer[self.ly * 160 + x] = palette[color_idx];
     }
 
     fn render_sprites(self: *Ppu) void {
         const sprite_height: u8 = if ((self.latched_lcd_control & 0x04) != 0) 16 else 8;
+        // Scan OAM for sprites on this line (max 10)
         var sprites_on_line: [10]u8 = undefined;
         var sprite_count: u8 = 0;
+        var i: u8 = 0;
+
+        while (i < 40 and sprite_count < 10) : (i += 1) {
+            const oam_addr: u16 = i * 4;
+            const sprite_y: u8 = self.oam[oam_addr];
+            if ((self.ly + 16) >= sprite_y and (self.ly + 16) < (sprite_y + sprite_height)) {
+                sprites_on_line[sprite_count] = i;
+                sprite_count += 1;
+            }
+        }
+
+        if (sprite_count == 0) return;
+        var sprite_n = sprite_count;
+        while (sprite_n != 0) {
+            sprite_n -= 1;
+            // calculate sprite address
+            const sprite_idx: u8 = sprites_on_line[sprite_n];
+            const sprite_addr: u16 = sprite_idx * 4;
+
+            // break down 4 byte sprite information
+            const sprite_y: u8 = self.oam[sprite_addr];
+            const sprite_x: u8 = self.oam[sprite_addr + 1];
+            const tile_idx: u8 = self.oam[sprite_addr + 2];
+            const sprite_flags: u8 = self.oam[sprite_addr + 3];
+
+            const priority: bool = @truncate(sprite_flags >> 7);
+            const y_flip: bool = @truncate(sprite_flags >> 6);
+            const x_flip: bool = @truncate(sprite_flags >> 5);
+            const dmg_palette: bool = @truncate(sprite_flags >> 4);
+            // const bank: u1 = @truncate(sprite_flags >> 3);
+            // const cgb_pallette: u3 = @truncate(sprite_flags >> 2);
+
+            var palette: [4]u32 = undefined;
+            const palette_data = if (dmg_palette == 0) self.latched_obp0 else self.latched_obp1;
+            for (0..4) |p| {
+                palette[p] = PALETTE[(palette_data >> @intCast(i * 2)) & 3];
+            }
+        }
+    }
+
+    fn render_sprites2(self: *Ppu) void {
+        const sprite_height: u8 = if ((self.latched_lcd_control & 0x04) != 0) 16 else 8;
 
         // Scan OAM for sprites on this line (max 10)
+        var sprites_on_line: [10]u8 = undefined;
+        var sprite_count: u8 = 0;
         var i: u8 = 0;
         while (i < 40 and sprite_count < 10) : (i += 1) {
             const oam_addr = i * 4;
