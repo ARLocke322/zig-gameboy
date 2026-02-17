@@ -274,10 +274,55 @@ pub const Ppu = struct {
 
     fn render_sprites(self: *Ppu) void {
         const sprite_height: u8 = if ((self.latched_lcd_control & 0x04) != 0) 16 else 8;
+        // Scan OAM for sprites on this line (max 10)
         var sprites_on_line: [10]u8 = undefined;
         var sprite_count: u8 = 0;
+        var i: u8 = 0;
+
+        while (i < 40 and sprite_count < 10) : (i += 1) {
+            const oam_addr: u16 = i * 4;
+            const sprite_y: u8 = self.oam[oam_addr];
+            if ((self.ly + 16) >= sprite_y and (self.ly + 16) < (sprite_y + sprite_height)) {
+                sprites_on_line[sprite_count] = i;
+                sprite_count += 1;
+            }
+        }
+
+        if (sprite_count == 0) return;
+        var sprite_n = sprite_count;
+        while (sprite_n != 0) {
+            sprite_n -= 1;
+            // calculate sprite address
+            const sprite_idx: u8 = sprites_on_line[sprite_n];
+            const sprite_addr: u16 = sprite_idx * 4;
+
+            // break down 4 byte sprite information
+            const sprite_y: u8 = self.oam[sprite_addr];
+            const sprite_x: u8 = self.oam[sprite_addr + 1];
+            const tile_idx: u8 = self.oam[sprite_addr + 2];
+            const sprite_flags: u8 = self.oam[sprite_addr + 3];
+
+            const priority: bool = @truncate(sprite_flags >> 7);
+            const y_flip: bool = @truncate(sprite_flags >> 6);
+            const x_flip: bool = @truncate(sprite_flags >> 5);
+            const dmg_palette: bool = @truncate(sprite_flags >> 4);
+            // const bank: u1 = @truncate(sprite_flags >> 3);
+            // const cgb_pallette: u3 = @truncate(sprite_flags >> 2);
+
+            var palette: [4]u32 = undefined;
+            const palette_data = if (dmg_palette == 0) self.latched_obp0 else self.latched_obp1;
+            for (0..4) |p| {
+                palette[p] = PALETTE[(palette_data >> @intCast(i * 2)) & 3];
+            }
+        }
+    }
+
+    fn render_sprites2(self: *Ppu) void {
+        const sprite_height: u8 = if ((self.latched_lcd_control & 0x04) != 0) 16 else 8;
 
         // Scan OAM for sprites on this line (max 10)
+        var sprites_on_line: [10]u8 = undefined;
+        var sprite_count: u8 = 0;
         var i: u8 = 0;
         while (i < 40 and sprite_count < 10) : (i += 1) {
             const oam_addr = i * 4;
