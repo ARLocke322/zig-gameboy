@@ -75,26 +75,29 @@ pub const Bus = struct {
     pub fn write8(self: *Bus, address: u16, value: u8) void {
         switch (address) {
             0x0000...0x7FFF => self.cartridge.write8(address, value),
-            0x8000...0x9FFF => self.vram[address - 0x8000] = value,
+            0x8000...0x9FFF => self.ppu.write8(address, value),
             0xA000...0xBFFF => self.cartridge.write8RAM(address, value),
             0xC000...0xCFFF => self.wram_0[address - 0xC000] = value,
             0xD000...0xDFFF => self.wram_n[address - 0xD000] = value,
-            0xE000...0xFDFF => {},
-            0xFE00...0xFE9F => self.oam[address - 0xFE00] = value,
-            0xFEA0...0xFEFF => {},
-
-            // Timer registers
+            0xE000...0xFDFF => self.write8(address - 0x2000, value), // Echo RAM
+            0xFE00...0xFE9F => self.ppu.write8(address, value), // OAM
+            0xFEA0...0xFEFF => {}, // Prohibited
+            0xFF00...0xFF03 => {}, // Joypad
             0xFF04...0xFF07 => self.timer.write8(address, value),
-
-            // Interrupt controller
-            0xFF0F => self.interrupts.write8(address, value),
-
-            // Other I/O (split around specific registers)
-            0xFF00...0xFF03 => {}, // Unimplemented
             0xFF08...0xFF0E => {}, // Unimplemented
-            0xFF10...0xFF7F => {}, // Unimplemented
-
-            // HRAM and IE
+            0xFF0F => self.interrupts.write8(address, value),
+            0xFF10...0xFF3F => {}, // Sound
+            0xFF40...0xFF45, 0xFF47...0xFF4B => self.ppu.write8(address, value),
+            0xFF46 => {
+                self.ppu.dma = value; // Store DMA register
+                // DMA transfer
+                const source = @as(u16, value) << 8;
+                for (0..0xA0) |i| {
+                    const byte = self.read8(source + @as(u16, @intCast(i)));
+                    self.ppu.oam[i] = byte;
+                }
+            },
+            0xFF4C...0xFF7F => {},
             0xFF80...0xFFFE => self.hram[address - 0xFF80] = value,
             0xFFFF => self.interrupts.write8(address, value),
         }

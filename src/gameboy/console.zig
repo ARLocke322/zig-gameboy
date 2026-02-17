@@ -1,4 +1,5 @@
 const Cpu = @import("cpu.zig").Cpu;
+const Ppu = @import("ppu.zig").Ppu;
 const Bus = @import("bus.zig").Bus;
 const Cartridge = @import("../cartridge/MBC1.zig").MBC1;
 const Timer = @import("timer.zig").Timer;
@@ -10,19 +11,16 @@ pub const Console = struct {
     timer: *Timer,
     bus: *Bus,
     cpu: *Cpu,
+    ppu: *Ppu,
     cycles: u64,
 
-    pub fn init(
-        interrupt_controller: *InterruptController,
-        timer: *Timer,
-        bus: *Bus,
-        cpu: *Cpu,
-    ) Console {
+    pub fn init(interrupt_controller: *InterruptController, timer: *Timer, bus: *Bus, cpu: *Cpu, ppu: *Ppu) Console {
         return Console{
             .interrupt_controller = interrupt_controller,
             .timer = timer,
             .bus = bus,
             .cpu = cpu,
+            .ppu = ppu,
             .cycles = 0,
         };
     }
@@ -42,6 +40,7 @@ pub const Console = struct {
         }
 
         self.timer.tick(cycles);
+        self.ppu.tick(cycles);
 
         self.cycles += cycles;
         return cycles;
