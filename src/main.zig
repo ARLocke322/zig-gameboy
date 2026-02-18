@@ -38,7 +38,7 @@ pub fn main(init: std.process.Init) !void {
     var cpu = Cpu.init(&bus, &interrupt_controller);
 
     // Initialise console and run
-    var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu);
+    var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu, &ppu);
     gb.run();
 
     // Check result

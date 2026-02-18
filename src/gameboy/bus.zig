@@ -81,16 +81,20 @@ pub const Bus = struct {
 
             // Timer registers
             0xFF04...0xFF07 => self.timer.write8(address, value),
-
-            // Interrupt controller
-            0xFF0F => self.interrupts.write8(address, value),
-
-            // Other I/O (split around specific registers)
-            0xFF00...0xFF03 => {}, // Unimplemented
             0xFF08...0xFF0E => {}, // Unimplemented
-            0xFF10...0xFF7F => {}, // Unimplemented
-
-            // HRAM and IE
+            0xFF0F => self.interrupts.write8(address, value),
+            0xFF10...0xFF3F => {}, // Sound
+            0xFF40...0xFF45, 0xFF47...0xFF4B => self.ppu.write8(address, value),
+            0xFF46 => {
+                self.ppu.dma = value; // Store DMA register
+                // DMA transfer
+                const source = @as(u16, value) << 8;
+                for (0..0xA0) |i| {
+                    const byte = self.read8(source + @as(u16, @intCast(i)));
+                    self.ppu.oam[i] = byte;
+                }
+            },
+            0xFF4C...0xFF7F => {},
             0xFF80...0xFFFE => self.hram[address - 0xFF80] = value,
             0xFFFF => self.interrupts.write8(address, value),
         }
