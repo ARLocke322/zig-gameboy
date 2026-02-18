@@ -64,18 +64,4 @@ pub const Console = struct {
         self.cycles += cycles;
         return cycles;
     }
-
-    pub fn run(self: *Console) void {
-        var count: u64 = 0;
-        while (true) {
-            _ = self.step();
-            count += 1;
-
-            if (count > 50_000_000) {
-                //std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
-                //std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
-                break;
-            }
-        }
-    }
 };
