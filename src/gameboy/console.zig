@@ -35,13 +35,12 @@ pub const Console = struct {
     }
 
     pub fn step(
-        self: *Console, // stdout: *std.Io.Writer,
+        self: *Console,
+        //stdout: *std.Io.Writer,
     ) !u8 {
-        // std.debug.print("PC = {x}\n", .{self.cpu.PC.getHiLo()});
         var cycles: u8 = 4; // minimum tick while halted
         if (!self.cpu.halted) {
             const opcode = self.cpu.fetch();
-            //std.debug.print("IX = {x}\n", .{opcode});
             cycles = self.cpu.decode_execute(opcode);
         }
 

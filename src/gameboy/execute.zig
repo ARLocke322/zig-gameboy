@@ -198,7 +198,7 @@ fn DEC_r16(cpu: *Cpu, opcode: u8) u8 {
 
 fn ADD_HL_r16(cpu: *Cpu, opcode: u8) u8 {
     const r = helpers.get_r16(cpu, @truncate(opcode >> 4));
-    x.execAdd16(cpu, r, Register.set, cpu.HL.getHiLo(), r.getHiLo());
+    x.execAdd16(cpu, &cpu.HL, Register.set, cpu.HL.getHiLo(), r.getHiLo());
     return 2;
 }
 
@@ -254,18 +254,22 @@ fn DEC_HL_mem(cpu: *Cpu) u8 {
 
 fn RLCA(cpu: *Cpu) u8 {
     x.execRotateLeft(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), false);
+    cpu.set_z(false);
     return 1;
 }
 fn RRCA(cpu: *Cpu) u8 {
     x.execRotateRight(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), false);
+    cpu.set_z(false);
     return 1;
 }
 fn RLA(cpu: *Cpu) u8 {
     x.execRotateLeft(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), true);
+    cpu.set_z(false);
     return 1;
 }
 fn RRA(cpu: *Cpu) u8 {
     x.execRotateRight(cpu, &cpu.AF, Register.setHi, cpu.AF.getHi(), true);
+    cpu.set_z(false);
     return 1;
 }
 fn DAA(cpu: *Cpu) u8 {
@@ -303,7 +307,7 @@ fn SCF(cpu: *Cpu) u8 {
 fn CCF(cpu: *Cpu) u8 {
     cpu.set_n(false);
     cpu.set_h(false);
-    cpu.set_c(~cpu.get_c() == 1);
+    cpu.set_c(cpu.get_c() == 0);
     return 1;
 }
 
