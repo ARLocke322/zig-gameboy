@@ -67,12 +67,10 @@ pub fn execAdd16(
     set(ctx, result[0]);
 
     cpu.set_n(false);
-    // cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
-    cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
+    cpu.set_h(@as(u32, (op1 & 0xFFF)) + @as(u32, (op2 & 0xFFF)) > 0xFFF);
     cpu.set_c(result[1] == 1);
 }
 
-// fix
 pub fn execAdd16Signed(
     cpu: *Cpu,
     ctx: anytype,
@@ -87,7 +85,7 @@ pub fn execAdd16Signed(
 
     cpu.set_z(false);
     cpu.set_n(false);
-    cpu.set_h((op1 & 0xFFF) + (op2_u16 & 0xFFF) > 0xFFF);
+    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2_u16), 0));
     cpu.set_c((op1 & 0xFF) + (op2_u16 & 0xFF) > 0xFF);
 }
 
@@ -178,7 +176,7 @@ pub fn execRotateRight(
 
     set(ctx, result);
 
-    if (useCarry) cpu.set_z(result == 0) else cpu.set_z(false);
+    cpu.set_z(result == 0);
     cpu.set_n(false);
     cpu.set_h(false);
     cpu.set_c(new_carry == 1);
