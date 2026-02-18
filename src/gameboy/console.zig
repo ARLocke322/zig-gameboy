@@ -64,7 +64,6 @@ pub const Console = struct {
         self.cycles += cycles;
         return cycles;
     }
-<<<<<<< Updated upstream
 
     pub fn run(self: *Console) void {
         var count: u64 = 0;
@@ -79,6 +78,4 @@ pub const Console = struct {
             }
         }
     }
-=======
->>>>>>> Stashed changes
 };
