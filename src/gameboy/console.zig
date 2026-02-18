@@ -22,6 +22,7 @@ pub const Console = struct {
         timer: *Timer,
         bus: *Bus,
         cpu: *Cpu,
+        ppu: *Ppu,
     ) Console {
         return Console{
             .interrupt_controller = interrupt_controller,
@@ -61,8 +62,8 @@ pub const Console = struct {
             count += 1;
 
             if (count > 50_000_000) {
-                std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
-                std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
+                //std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
+                //std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
                 break;
             }
         }

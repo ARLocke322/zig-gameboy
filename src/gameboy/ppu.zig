@@ -215,9 +215,17 @@ pub const Ppu = struct {
 
         for (0..160) |x| {
             // absolute x and y positions with scroll
-            const map_x: u8 = @as(u8, x) +% self.latched_scx;
+            const map_x: u8 = @as(u8, @truncate(x)) +% self.latched_scx;
             const map_y: u8 = self.ly +% self.latched_scy;
-            self.render_pixel(map_base, tile_base, use_unsigned_tiles, palette, @as(u8, x), map_x, map_y);
+            self.render_pixel(
+                map_base,
+                tile_base,
+                use_unsigned_tiles,
+                palette,
+                @as(u8, @truncate(x)),
+                map_x,
+                map_y,
+            );
         }
     }
 
@@ -231,14 +239,22 @@ pub const Ppu = struct {
         }
 
         assert(self.latched_wx > 6);
-        const window_x_start: u16 = self.latched_wx - 7;
+        const window_x_start: u8 = self.latched_wx - 7;
 
         for (0..160) |x| {
-            if (@as(u8, x) < window_x_start) continue;
+            if (@as(u8, @truncate(x)) < window_x_start) continue;
             // absolute x, y positions in window
-            const map_x: u8 = @as(u8, x) - window_x_start;
+            const map_x: u8 = @as(u8, @truncate(x)) - window_x_start;
             const map_y: u8 = self.window_line;
-            self.render_pixel(map_base, tile_base, use_unsigned_tiles, palette, @as(u8, x), map_x, map_y);
+            self.render_pixel(
+                map_base,
+                tile_base,
+                use_unsigned_tiles,
+                palette,
+                @as(u8, @truncate(x)),
+                map_x,
+                map_y,
+            );
         }
 
         self.window_line +%= 1;
@@ -283,7 +299,7 @@ pub const Ppu = struct {
         const bit_pos: u3 = @intCast(7 - pixel_x);
         const color_idx: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
 
-        self.display_buffer[self.ly * 160 + x] = palette[color_idx];
+        self.display_buffer[@as(u32, self.ly) * 160 + x] = palette[color_idx];
     }
 
     fn render_sprites(self: *Ppu) void {
@@ -313,13 +329,13 @@ pub const Ppu = struct {
             // break down 4 byte sprite information
             const sprite_y: u8 = self.oam[sprite_addr];
             const sprite_x: u8 = self.oam[sprite_addr + 1];
-            const tile_idx: u8 = self.oam[sprite_addr + 2];
+            const tile_idx: u16 = self.oam[sprite_addr + 2];
             const sprite_flags: u8 = self.oam[sprite_addr + 3];
 
-            const priority: bool = @truncate(sprite_flags >> 7);
-            const y_flip: bool = @truncate(sprite_flags >> 6);
-            const x_flip: bool = @truncate(sprite_flags >> 5);
-            const dmg_palette: bool = @truncate(sprite_flags >> 4);
+            const priority: u1 = @truncate(sprite_flags >> 7);
+            const y_flip: u1 = @truncate(sprite_flags >> 6);
+            const x_flip: u1 = @truncate(sprite_flags >> 5);
+            const dmg_palette: u1 = @truncate(sprite_flags >> 4);
             // const bank: u1 = @truncate(sprite_flags >> 3);
             // const cgb_pallette: u3 = @truncate(sprite_flags >> 2);
 
@@ -330,7 +346,7 @@ pub const Ppu = struct {
             }
 
             var pixel_y: u8 = self.ly + 16 - sprite_y;
-            if (y_flip) pixel_y = (sprite_height - 1) - pixel_y;
+            if (y_flip == 1) pixel_y = (sprite_height - 1) - pixel_y;
 
             const tile_addr: u16 = 0x8000 + tile_idx * 16;
             const byte1: u8 = self.read8(tile_addr + pixel_y * 2);
@@ -338,11 +354,12 @@ pub const Ppu = struct {
 
             for (0..8) |px| {
                 // skip if not on screen
-                const screen_x: u16 = @subWithOverflow(sprite_x + px, 8);
-                if (screen_x[1] or screen_x[0] >= 160) continue;
+                const result = @subWithOverflow(sprite_x + px, 8);
+                const screen_x: u16 = @truncate(result[0]);
+                if (result[1] == 1 or screen_x >= 160) continue;
 
-                var pixel_x: u8 = px;
-                if (x_flip) pixel_x = 7 - pixel_x;
+                var pixel_x: u8 = @truncate(px);
+                if (x_flip == 1) pixel_x = 7 - pixel_x;
 
                 // calculate the pixels position in this row of bytes, then get the color idx
                 const bit_pos: u3 = @intCast(7 - pixel_x);
