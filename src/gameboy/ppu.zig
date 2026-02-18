@@ -32,6 +32,8 @@ pub const Ppu = struct {
     latched_lcd_control: u8 = 0,
     latched_wy: u8 = 0,
     latched_wx: u8 = 0,
+    current_signal: bool = false,
+    stat_int_signal: bool = false,
 
     const PALETTE: [4]u32 = .{ 0xFFE0F8D0, 0xFF88C070, 0xFF346856, 0xFF081820 };
 
@@ -98,12 +100,16 @@ pub const Ppu = struct {
             0x9C00...0x9FFF => self.tile_map_2[addr - 0x9C00] = val,
             0xFE00...0xFE9F => self.oam[addr - 0xFE00] = val,
             0xFF40 => self.lcd_control = val,
-            0xFF41 => self.stat = (val & 0xF8) | (self.stat & 0x07),
+            0xFF41 => {
+                self.stat = (val & 0xF8) | (self.stat & 0x07);
+                self.handle_stat_interrupt();
+            },
             0xFF42 => self.scy = val,
             0xFF43 => self.scx = val,
             0xFF44 => {},
             0xFF45 => {
                 self.lyc = val;
+                self.handle_stat_interrupt();
             },
             0xFF46 => unreachable,
             0xFF47 => self.bgp = val,
@@ -118,6 +124,8 @@ pub const Ppu = struct {
     pub fn tick(self: *Ppu, cycles: u8) void {
         if ((self.lcd_control & 0x80) == 0) {
             self.set_ppu_mode(2);
+            self.ly = 0;
+            self.cycles = 0;
             return;
         }
 
@@ -129,8 +137,6 @@ pub const Ppu = struct {
             0x02 => self.handle_oam_scan(),
             0x03 => self.handle_render(),
         }
-
-        self.check_lyc_match();
     }
 
     fn handle_hblank(self: *Ppu) void {
@@ -141,6 +147,8 @@ pub const Ppu = struct {
                 self.set_ppu_mode(1);
                 self.interrupt_controller.request(InterruptController.VBLANK);
             } else self.set_ppu_mode(2);
+
+            self.handle_stat_interrupt();
         }
     }
 
@@ -153,6 +161,8 @@ pub const Ppu = struct {
                 self.window_line = 0;
                 self.set_ppu_mode(2);
             }
+
+            self.handle_stat_interrupt();
         }
     }
 
@@ -168,6 +178,8 @@ pub const Ppu = struct {
             self.latched_wy = self.wy;
             self.set_ppu_mode(3);
             self.cycles -= 80;
+
+            self.handle_stat_interrupt();
         }
     }
 
@@ -176,6 +188,8 @@ pub const Ppu = struct {
             self.render_scanline();
             self.set_ppu_mode(0);
             self.cycles -= 172;
+
+            self.handle_stat_interrupt();
         }
     }
 
@@ -312,90 +326,69 @@ pub const Ppu = struct {
             var palette: [4]u32 = undefined;
             const palette_data = if (dmg_palette == 0) self.latched_obp0 else self.latched_obp1;
             for (0..4) |p| {
-                palette[p] = PALETTE[(palette_data >> @intCast(i * 2)) & 3];
-            }
-        }
-    }
-
-    fn render_sprites2(self: *Ppu) void {
-        const sprite_height: u8 = if ((self.latched_lcd_control & 0x04) != 0) 16 else 8;
-
-        // Scan OAM for sprites on this line (max 10)
-        var sprites_on_line: [10]u8 = undefined;
-        var sprite_count: u8 = 0;
-        var i: u8 = 0;
-        while (i < 40 and sprite_count < 10) : (i += 1) {
-            const oam_addr = i * 4;
-            const sprite_y = self.oam[oam_addr];
-            const sprite_line = @as(i16, self.ly) - (@as(i16, sprite_y) - 16);
-
-            if (sprite_line >= 0 and sprite_line < sprite_height) {
-                sprites_on_line[sprite_count] = i;
-                sprite_count += 1;
-            }
-        }
-
-        // Render sprites in reverse priority (lowest priority first)
-        var s: i8 = @as(i8, @intCast(sprite_count)) - 1;
-        while (s >= 0) : (s -= 1) {
-            const sprite_idx = sprites_on_line[@intCast(s)];
-            const oam_addr = sprite_idx * 4;
-            const sprite_y = self.oam[oam_addr];
-            const sprite_x = self.oam[oam_addr + 1];
-            var tile_idx = self.oam[oam_addr + 2];
-            const flags = self.oam[oam_addr + 3];
-
-            const palette_num = (flags >> 4) & 1;
-            const x_flip = (flags & 0x20) != 0;
-            const y_flip = (flags & 0x40) != 0;
-            const behind_bg = (flags & 0x80) != 0;
-
-            var palette: [4]u32 = undefined;
-            const palette_data = if (palette_num == 0) self.latched_obp0 else self.latched_obp1;
-            for (0..4) |p| {
                 palette[p] = PALETTE[(palette_data >> @intCast(p * 2)) & 3];
             }
 
-            const sprite_line = @as(i16, self.ly) - (@as(i16, sprite_y) - 16);
-            var pixel_y: u8 = @intCast(sprite_line);
+            var pixel_y: u8 = self.ly + 16 - sprite_y;
             if (y_flip) pixel_y = (sprite_height - 1) - pixel_y;
 
-            if (sprite_height == 16) tile_idx &= 0xFE;
-
-            const tile_addr = 0x8000 + @as(u16, tile_idx) * 16;
-            const byte1 = self.read8(tile_addr + pixel_y * 2);
-            const byte2 = self.read8(tile_addr + pixel_y * 2 + 1);
+            const tile_addr: u16 = 0x8000 + tile_idx * 16;
+            const byte1: u8 = self.read8(tile_addr + pixel_y * 2);
+            const byte2: u8 = self.read8(tile_addr + pixel_y * 2 + 1);
 
             for (0..8) |px| {
-                const screen_x = @as(i16, sprite_x) - 8 + @as(i16, @intCast(px));
-                if (screen_x < 0 or screen_x >= 160) continue;
+                // skip if not on screen
+                const screen_x: u16 = @subWithOverflow(sprite_x + px, 8);
+                if (screen_x[1] or screen_x[0] >= 160) continue;
 
-                var pixel_x: u8 = @intCast(px);
+                var pixel_x: u8 = px;
                 if (x_flip) pixel_x = 7 - pixel_x;
 
+                // calculate the pixels position in this row of bytes, then get the color idx
                 const bit_pos: u3 = @intCast(7 - pixel_x);
-                const color_id: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
+                const color_idx: u2 = @intCast(((byte1 >> bit_pos) & 1) | (((byte2 >> bit_pos) & 1) << 1));
 
-                if (color_id == 0) continue; // Transparent
+                if (color_idx == 0) continue; // transparent
 
-                const buffer_idx = self.ly * 160 + @as(usize, @intCast(screen_x));
-                if (!behind_bg or self.display_buffer[buffer_idx] == palette[0]) {
-                    self.display_buffer[buffer_idx] = palette[color_id];
+                const buffer_idx = self.ly * 160 + screen_x;
+                if (priority == 0 or self.display_buffer[buffer_idx] == palette[0]) {
+                    self.display_buffer[buffer_idx] = palette[color_idx];
                 }
             }
         }
     }
 
-    fn set_ppu_mode(self: *Ppu, mode: u2) void {
-        self.stat = (self.stat & 0xFC) | mode;
+    fn handle_stat_interrupt(self: *Ppu) void {
+        if (self.ly == self.lyc) {
+            self.stat |= 0x04;
+        } else {
+            self.stat &= ~@as(u8, 0x04);
+        }
+
+        self.current_signal = false;
+
+        const bit_6: bool = @as(u1, @truncate(self.stat >> 6)) == 1;
+        const bit_5: bool = @as(u1, @truncate(self.stat >> 5)) == 1;
+        const bit_4: bool = @as(u1, @truncate(self.stat >> 4)) == 1;
+        const bit_3: bool = @as(u1, @truncate(self.stat >> 3)) == 1;
+        const mode: u2 = @truncate(self.stat);
+
+        if ((bit_6 and self.lyc == self.ly) or
+            (bit_5 and mode == 2) or
+            (bit_4 and mode == 1) or
+            (bit_3 and mode == 0))
+        {
+            self.current_signal = true;
+        }
+
+        if (self.current_signal and !self.stat_int_signal) { // rising edge
+            self.interrupt_controller.request(InterruptController.LCD_STAT);
+        }
+
+        self.stat_int_signal = self.current_signal;
     }
 
-    fn check_lyc_match(self: *Ppu) void {
-        if (self.lyc == self.ly) {
-            self.stat |= 0x4;
-            if ((self.stat & 0x40) != 0) {
-                self.interrupt_controller.request(InterruptController.LCD_STAT);
-            }
-        } else self.stat &= 0xFB;
+    fn set_ppu_mode(self: *Ppu, mode: u2) void {
+        self.stat = (self.stat & 0xFC) | mode;
     }
 };

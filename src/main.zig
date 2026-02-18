@@ -33,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
 
     var interrupt_controller = InterruptController.init();
     var timer = Timer.init(&interrupt_controller);
-    var ppu = Ppu.init();
+    var ppu = Ppu.init(&interrupt_controller);
     var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu);
     var cpu = Cpu.init(&bus, &interrupt_controller);
 
