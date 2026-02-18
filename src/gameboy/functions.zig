@@ -67,6 +67,7 @@ pub fn execAdd16(
     set(ctx, result[0]);
 
     cpu.set_n(false);
+    // cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
     cpu.set_h(halfCarryAdd(@truncate(op1 >> 8), @truncate(op2 >> 8), 0));
     cpu.set_c(result[1] == 1);
 }
@@ -86,7 +87,7 @@ pub fn execAdd16Signed(
 
     cpu.set_z(false);
     cpu.set_n(false);
-    cpu.set_h(halfCarryAdd(@truncate(op1), @truncate(op2_u16), 0));
+    cpu.set_h((op1 & 0xFFF) + (op2_u16 & 0xFFF) > 0xFFF);
     cpu.set_c((op1 & 0xFF) + (op2_u16 & 0xFF) > 0xFF);
 }
 

@@ -21,18 +21,21 @@ pub const Cpu = struct {
 
     interrupt_controller: *InterruptController,
 
+    halted: bool,
+
     pub fn init(mem: *Bus, interrupt_controller: *InterruptController) Cpu {
         return Cpu{
-            .AF = Register.init(0),
-            .BC = Register.init(0),
-            .DE = Register.init(0),
-            .HL = Register.init(0),
-            .SP = Register.init(0),
+            .AF = Register.init(0x01B0),
+            .BC = Register.init(0x0013),
+            .DE = Register.init(0x00D8),
+            .HL = Register.init(0x014D),
+            .SP = Register.init(0xFFFE),
             .PC = Register.init(0x0100),
             .mem = mem,
             .IME = false,
             .IME_scheduled = false,
             .interrupt_controller = interrupt_controller,
+            .halted = false,
         };
     }
 
@@ -47,6 +50,8 @@ pub const Cpu = struct {
 
     pub fn handle_interrupt(self: *Cpu) void {
         const pending = self.interrupt_controller.get_pending();
+
+        if (pending != 0) self.halted = false;
 
         var interrupt_bit: u3 = 0;
         if (pending & 0x01 != 0) {

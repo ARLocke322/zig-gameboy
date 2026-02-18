@@ -1,5 +1,6 @@
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const assert = @import("std").debug.assert;
+const std = @import("std");
 
 pub const Timer = struct {
     DIV: u8,
@@ -36,10 +37,17 @@ pub const Timer = struct {
     pub fn write8(self: *Timer, addr: u16, value: u8) void {
         assert(addr >= 0xFF04 and addr <= 0xFF07);
         switch (addr) {
-            0xFF04 => self.DIV = 0x00,
+            0xFF04 => {
+                self.DIV = 0x00;
+                // self.div_counter = 0;
+                // self.tima_counter = 0;
+            },
             0xFF05 => self.TIMA = value,
             0xFF06 => self.TMA = value,
-            0xFF07 => self.TAC = value & 0x07,
+            0xFF07 => {
+                self.TAC = value & 0x07;
+                // self.tima_counter = 0;
+            },
             else => unreachable,
         }
     }
