@@ -7,14 +7,22 @@ const InterruptController = @import("interrupt_controller.zig").InterruptControl
 const std = @import("std");
 
 pub const Console = struct {
+    const CYCLES_PER_FRAME: u64 = 70224;
+    const FRAME_TIME_NS: u64 = 16_742_706; // ~59.7 FPS
+    //
     interrupt_controller: *InterruptController,
     timer: *Timer,
     bus: *Bus,
     cpu: *Cpu,
     ppu: *Ppu,
     cycles: u64,
-
-    pub fn init(interrupt_controller: *InterruptController, timer: *Timer, bus: *Bus, cpu: *Cpu, ppu: *Ppu) Console {
+    //
+    pub fn init(
+        interrupt_controller: *InterruptController,
+        timer: *Timer,
+        bus: *Bus,
+        cpu: *Cpu,
+    ) Console {
         return Console{
             .interrupt_controller = interrupt_controller,
             .timer = timer,
@@ -52,8 +60,6 @@ pub const Console = struct {
             _ = self.step();
             count += 1;
 
-            std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
-            std.debug.print("Opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});
             if (count > 50_000_000) {
                 std.debug.print("\nPC: 0x{X:0>4}\n", .{self.cpu.PC.getHiLo()});
                 std.debug.print("Last opcode: 0x{X:0>2}\n", .{self.bus.read8(self.cpu.PC.getHiLo())});

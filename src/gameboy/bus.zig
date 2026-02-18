@@ -5,10 +5,8 @@ const InterruptController = @import("interrupt_controller.zig").InterruptControl
 const Ppu = @import("ppu.zig").Ppu;
 
 pub const Bus = struct {
-    vram: [0x2000]u8, // 0x8000-0x9FFF: 8 KiB VRAM
     wram_0: [0x1000]u8, // 0xC000-0xCFFF: 4 KiB WRAM
     wram_n: [0x1000]u8, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
-    oam: [0xA0]u8, // 0xFE00-0xFE9F: OAM
     hram: [0x7F]u8, // 0xFF80-0xFFFE: HRAM
 
     cartridge: *MCB0,
@@ -26,10 +24,8 @@ pub const Bus = struct {
         ppu: *Ppu,
     ) Bus {
         return Bus{
-            .vram = [_]u8{0} ** 0x2000,
             .wram_0 = [_]u8{0} ** 0x1000,
             .wram_n = [_]u8{0} ** 0x1000,
-            .oam = [_]u8{0} ** 0xA0,
             .hram = [_]u8{0} ** 0x7F,
             .cartridge = cartridge,
             .timer = timer,
@@ -79,10 +75,11 @@ pub const Bus = struct {
             0xA000...0xBFFF => self.cartridge.write8RAM(address, value),
             0xC000...0xCFFF => self.wram_0[address - 0xC000] = value,
             0xD000...0xDFFF => self.wram_n[address - 0xD000] = value,
-            0xE000...0xFDFF => self.write8(address - 0x2000, value), // Echo RAM
-            0xFE00...0xFE9F => self.ppu.write8(address, value), // OAM
-            0xFEA0...0xFEFF => {}, // Prohibited
-            0xFF00...0xFF03 => {}, // Joypad
+            0xE000...0xFDFF => {},
+            0xFE00...0xFE9F => self.ppu.write8(address, value),
+            0xFEA0...0xFEFF => {},
+
+            // Timer registers
             0xFF04...0xFF07 => self.timer.write8(address, value),
             0xFF08...0xFF0E => {}, // Unimplemented
             0xFF0F => self.interrupts.write8(address, value),
