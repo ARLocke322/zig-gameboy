@@ -53,7 +53,7 @@ pub fn execute(cpu: *Cpu, instruction: u8) u8 {
         0x10 => STOP(),
 
         // BLOCK 1
-        0x76 => HALT(),
+        0x76 => HALT(cpu),
         0x46, 0x4E, 0x56, 0x5E, 0x66, 0x6E, 0x7E => LD_r8_HL(cpu, instruction),
         0x70...0x75, 0x77 => LD_HL_r8(cpu, instruction),
 
@@ -243,7 +243,7 @@ fn DEC_HL_mem(cpu: *Cpu) u8 {
     const addr: u16 = cpu.HL.getHiLo();
     const current: u8 = cpu.mem.read8(addr);
 
-    const result = current +% 1;
+    const result = current -% 1;
     cpu.mem.write8(addr, result);
 
     cpu.set_z(result == 0);
@@ -344,8 +344,8 @@ fn LD_HL_r8(cpu: *Cpu, opcode: u8) u8 {
     return 2;
 }
 // cpu: *Cpu
-fn HALT() u8 {
-    // cpu.halted = true;
+fn HALT(cpu: *Cpu) u8 {
+    cpu.halted = true;
     return 1;
 }
 
@@ -527,7 +527,9 @@ fn RST(cpu: *Cpu, instruction: u8) u8 {
 
 fn POP_r16stk(cpu: *Cpu, instruction: u8) u8 {
     const r = helpers.get_r16stk(cpu, @truncate(instruction >> 4));
-    r.set(cpu.sp_pop_16());
+    if (instruction == 0xF1) {
+        r.set(cpu.sp_pop_16() & 0xFFF0);
+    } else r.set(cpu.sp_pop_16());
     return 3;
 }
 

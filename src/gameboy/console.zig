@@ -33,13 +33,23 @@ pub const Console = struct {
         };
     }
 
-    pub fn step(self: *Console) u8 {
-        const opcode = self.cpu.fetch();
-        var cycles = self.cpu.decode_execute(opcode);
+    pub fn step(
+        self: *Console, // stdout: *std.Io.Writer,
+    ) !u8 {
+        // std.debug.print("PC = {x}\n", .{self.cpu.PC.getHiLo()});
+        var cycles: u8 = 4; // minimum tick while halted
+        if (!self.cpu.halted) {
+            const opcode = self.cpu.fetch();
+            //std.debug.print("IX = {x}\n", .{opcode});
+            cycles = self.cpu.decode_execute(opcode);
+        }
 
-        if (self.cpu.IME and self.cpu.interrupt_controller.get_pending() != 0) {
-            self.cpu.handle_interrupt();
-            cycles += 20;
+        if (self.cpu.interrupt_controller.get_pending() != 0) {
+            self.cpu.halted = false;
+            if (self.cpu.IME) {
+                self.cpu.handle_interrupt();
+                cycles += 20;
+            }
         }
 
         if (self.cpu.IME_scheduled) {
@@ -47,12 +57,13 @@ pub const Console = struct {
             self.cpu.IME_scheduled = false;
         }
 
-        self.timer.tick(cycles);
-        self.ppu.tick(cycles);
+        self.timer.tick(cycles * 4);
+        self.ppu.tick(cycles * 4);
 
         self.cycles += cycles;
         return cycles;
     }
+<<<<<<< Updated upstream
 
     pub fn run(self: *Console) void {
         var count: u64 = 0;
@@ -67,4 +78,6 @@ pub const Console = struct {
             }
         }
     }
+=======
+>>>>>>> Stashed changes
 };

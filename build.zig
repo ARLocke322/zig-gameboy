@@ -82,7 +82,12 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-
+    const sdl_dep = b.dependency("sdl", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const sdl_lib = sdl_dep.artifact("SDL3");
+    exe.root_module.linkLibrary(sdl_lib);
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
     // step). By default the install prefix is `zig-out/` but can be overridden

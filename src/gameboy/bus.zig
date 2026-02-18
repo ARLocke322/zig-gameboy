@@ -79,6 +79,14 @@ pub const Bus = struct {
             0xFE00...0xFE9F => self.ppu.write8(address, value),
             0xFEA0...0xFEFF => {},
 
+<<<<<<< Updated upstream
+=======
+            0xFF00 => {},
+            0xFF01,
+            => {},
+            0xFF02 => {},
+            0xFF03 => {},
+>>>>>>> Stashed changes
             // Timer registers
             0xFF04...0xFF07 => self.timer.write8(address, value),
             0xFF08...0xFF0E => {}, // Unimplemented
