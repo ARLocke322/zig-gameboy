@@ -38,8 +38,13 @@ pub const Console = struct {
         self: *Console,
         //stdout: *std.Io.Writer,
     ) !u8 {
-        // std.debug.print("lcdc: {x}\n", .{self.ppu.lcd_control});
-        var cycles: u8 = 4; // minimum tick while halted
+        var cycles: u8 = 1; // minimum tick while halted
+
+        if (self.cpu.IME_scheduled) {
+            self.cpu.IME = true;
+            self.cpu.IME_scheduled = false;
+        }
+
         if (!self.cpu.halted) {
             const opcode = self.cpu.fetch();
             cycles = self.cpu.decode_execute(opcode);
@@ -49,13 +54,8 @@ pub const Console = struct {
             self.cpu.halted = false;
             if (self.cpu.IME) {
                 self.cpu.handle_interrupt();
-                cycles += 20;
+                cycles += 5;
             }
-        }
-
-        if (self.cpu.IME_scheduled) {
-            self.cpu.IME = true;
-            self.cpu.IME_scheduled = false;
         }
 
         self.timer.tick(cycles * 4);

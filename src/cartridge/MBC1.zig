@@ -84,7 +84,7 @@ pub const MBC1 = struct {
                 if (self.rom_banking) self.ram_bank = 0 else self.rom_bank &= 0x1F;
             },
             0xA000...0xBFFF => {
-                if (self.ram_enabled) {
+                if (self.ram_enabled and self.ram.len > 0) {
                     const ix = (addr - 0xA000) + (@as(u16, self.ram_bank) * 0x2000);
                     assert(ix < self.ram.len);
                     self.ram[ix] = val;
