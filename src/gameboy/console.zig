@@ -38,6 +38,7 @@ pub const Console = struct {
         self: *Console,
         //stdout: *std.Io.Writer,
     ) !u8 {
+        // std.debug.print("lcdc: {x}\n", .{self.ppu.lcd_control});
         var cycles: u8 = 4; // minimum tick while halted
         if (!self.cpu.halted) {
             const opcode = self.cpu.fetch();

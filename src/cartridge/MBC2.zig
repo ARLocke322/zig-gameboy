@@ -31,7 +31,7 @@ pub const MBC2 = struct {
         };
     }
 
-    pub fn read8(self: *MBC2, addr: u16) u8 {
+    pub fn read(self: *MBC2, addr: u16) u8 {
         assert((addr >= 0x0000 and addr <= 0x7FFF) or
             addr >= 0xA000 and addr <= 0xBFFF);
         return switch (addr) {
@@ -53,8 +53,9 @@ pub const MBC2 = struct {
         };
     }
 
-    pub fn write8(self: *MBC2, addr: u16, val: u8) void {
-        assert(addr >= 0x000 and addr <= 0x3FFF);
+    pub fn write(self: *MBC2, addr: u16, val: u8) void {
+        assert((addr >= 0x000 and addr <= 0x3FFF) or
+            (addr >= 0xA000 and addr <= 0xBFFF));
         switch (addr) {
             0x0000...0x3FFF => {
                 if ((addr & 0x0100) == 0x0) { // enable/disable ram
@@ -64,18 +65,14 @@ pub const MBC2 = struct {
                     self.update_invalid_rom_bank();
                 }
             },
-            else => unreachable,
-        }
-    }
+            0xA000...0xA1FF => {
+                if (self.ram_enabled) self.ram[addr - 0xA000] = @truncate(val);
+            },
+            0xA200...0xBFFF => {
+                if (self.ram_enabled) self.ram[(addr - 0xA200) & 0x01FF] = @truncate(val);
+            },
 
-    pub fn write8RAM(self: *MBC2, addr: u16, val: u8) void {
-        assert(addr >= 0xA000 and addr <= 0xBFFF);
-        if (self.ram_enabled) {
-            switch (addr) {
-                0xA000...0xA1FFF => self.ram[addr - 0xA000] = @truncate(val),
-                0xA200...0xBFFF => self.ram[(addr - 0xA200) & 0x01FF] = @truncate(val),
-                else => unreachable,
-            }
+            else => unreachable,
         }
     }
 
@@ -112,7 +109,7 @@ test "should read from rom bank 0 correctly " {
     defer cart.deinit();
 
     cart.rom[0x0100] = 0x01;
-    try std.testing.expect(cart.read8(0x0100) == 0x01);
+    try std.testing.expect(cart.read(0x0100) == 0x01);
 }
 
 test "should read from rom bank 1 correctly " {
@@ -121,7 +118,7 @@ test "should read from rom bank 1 correctly " {
     defer cart.deinit();
 
     cart.rom[0x5000] = 0x01;
-    try std.testing.expect(cart.read8(0x5000) == 0x01);
+    try std.testing.expect(cart.read(0x5000) == 0x01);
 }
 
 test "should read from rom bank N correctly " {
@@ -131,7 +128,7 @@ test "should read from rom bank N correctly " {
 
     cart.rom[0x9000] = 0x01;
     cart.rom_bank = 2;
-    try std.testing.expect(cart.read8(0x5000) == 0x01);
+    try std.testing.expect(cart.read(0x5000) == 0x01);
 }
 
 test "should read from ram correctly" {
@@ -140,12 +137,12 @@ test "should read from ram correctly" {
     defer cart.deinit();
 
     cart.ram[0x0001] = 0x01;
-    try std.testing.expect(cart.read8(0xA001) == 0xFF);
-    try std.testing.expect(cart.read8(0xB001) == 0xFF);
+    try std.testing.expect(cart.read(0xA001) == 0xFF);
+    try std.testing.expect(cart.read(0xB001) == 0xFF);
 
-    cart.write8(0x0000, 0xA);
-    try std.testing.expect(cart.read8(0xA001) == 0x01);
-    try std.testing.expect(cart.read8(0xB001) == 0x01);
+    cart.write(0x0000, 0xA);
+    try std.testing.expect(cart.read(0xA001) == 0x01);
+    try std.testing.expect(cart.read(0xB001) == 0x01);
 }
 
 test "should change rom banks correctly " {
@@ -153,7 +150,7 @@ test "should change rom banks correctly " {
     var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
     defer cart.deinit();
 
-    cart.write8(0x0100, 0x2);
+    cart.write(0x0100, 0x2);
 
     try std.testing.expect(cart.rom_bank == 0x02);
 }
@@ -163,10 +160,10 @@ test "should enable ram correctly" {
     var cart = try MBC2.init(std.testing.allocator, data[0..0xF000], 32);
     defer cart.deinit();
 
-    cart.write8(0x0000, 0x1);
+    cart.write(0x0000, 0x1);
     try std.testing.expect(cart.ram_enabled == false);
 
-    cart.write8(0x0000, 0xA);
+    cart.write(0x0000, 0xA);
     try std.testing.expect(cart.ram_enabled == true);
 }
 
@@ -176,7 +173,7 @@ test "should read correctly after changing rom banks" {
     defer cart.deinit();
 
     cart.rom[0x9000] = 0x1;
-    cart.write8(0x0100, 0x2);
+    cart.write(0x0100, 0x2);
 
-    try std.testing.expect(cart.read8(0x5000) == 0x01);
+    try std.testing.expect(cart.read(0x5000) == 0x01);
 }

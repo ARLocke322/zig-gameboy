@@ -1,5 +1,5 @@
 const std = @import("std");
-const MCB0 = @import("../cartridge/MBC1.zig").MBC1;
+const Cartridge = @import("../cartridge/cartridge.zig").Cartridge;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const Ppu = @import("ppu.zig").Ppu;
@@ -9,7 +9,7 @@ pub const Bus = struct {
     wram_n: [0x1000]u8, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
     hram: [0x7F]u8, // 0xFF80-0xFFFE: HRAM
 
-    cartridge: *MCB0,
+    cartridge: *Cartridge,
     timer: *Timer,
     interrupts: *InterruptController,
     ppu: *Ppu,
@@ -17,7 +17,7 @@ pub const Bus = struct {
     // apu: *APU,        // future
 
     pub fn init(
-        cartridge: *MCB0,
+        cartridge: *Cartridge,
         timer: *Timer,
         interrupts: *InterruptController,
         ppu: *Ppu,
@@ -34,9 +34,9 @@ pub const Bus = struct {
     }
     pub fn read8(self: *Bus, address: u16) u8 {
         return switch (address) {
-            0x0000...0x7FFF => self.cartridge.read8(address),
+            0x0000...0x7FFF => self.cartridge.read(address),
             0x8000...0x9FFF => self.ppu.read8(address),
-            0xA000...0xBFFF => self.cartridge.read8(address),
+            0xA000...0xBFFF => self.cartridge.read(address),
             0xC000...0xCFFF => self.wram_0[address - 0xC000],
             0xD000...0xDFFF => self.wram_n[address - 0xD000],
             0xE000...0xFDFF => blk: {
@@ -58,7 +58,6 @@ pub const Bus = struct {
 
             // Interrupt controller
             0xFF0F => self.interrupts.read8(address),
-
             0xFF08...0xFF0E => 0xFF,
             0xFF10...0xFF26 => 0xFF, // audio
             0xFF30...0xFF3F => 0xFF, // audio wave pattern
@@ -74,9 +73,9 @@ pub const Bus = struct {
 
     pub fn write8(self: *Bus, address: u16, value: u8) void {
         switch (address) {
-            0x0000...0x7FFF => self.cartridge.write8(address, value),
+            0x0000...0x7FFF => self.cartridge.write(address, value),
             0x8000...0x9FFF => self.ppu.write8(address, value),
-            0xA000...0xBFFF => self.cartridge.write8RAM(address, value),
+            0xA000...0xBFFF => self.cartridge.write(address, value),
             0xC000...0xCFFF => self.wram_0[address - 0xC000] = value,
             0xD000...0xDFFF => self.wram_n[address - 0xD000] = value,
             0xE000...0xFDFF => {},

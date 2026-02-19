@@ -1,4 +1,4 @@
-const Cartridge = @import("./cartridge/MBC1.zig").MBC1;
+const Cartridge = @import("./cartridge/cartridge.zig").Cartridge;
 const Console = @import("./gameboy/console.zig").Console;
 const Cpu = @import("./gameboy/cpu.zig").Cpu;
 const Bus = @import("./gameboy/bus.zig").Bus;
@@ -38,7 +38,7 @@ pub fn main(init: std.process.Init) !void {
     defer allocator.free(rom_buffer);
 
     // Initialise Cartridge
-    var cart = try Cartridge.init(allocator, rom_buffer, get_ram_bytes(buffer[0x0149]));
+    var cart = try Cartridge.init(allocator, rom_buffer);
     defer cart.deinit();
 
     var interrupt_controller = InterruptController.init();
@@ -134,11 +134,4 @@ fn load_file_into_buffer(
     // Read the file contents into the buffer
     const rom_buffer = try std.zig.readSourceFileToEndAlloc(allocator, &reader);
     return rom_buffer;
-}
-
-fn get_ram_bytes(code: u16) usize {
-    return switch (code) {
-        0x00 => 0,
-        else => 0,
-    };
 }
