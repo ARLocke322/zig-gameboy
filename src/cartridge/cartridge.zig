@@ -17,7 +17,7 @@ pub const Cartridge = struct {
         const ram_size: usize = getRamSize(data[0x149]);
         std.debug.print("MBC Bit: {x}\n", .{data[0x147]});
         return switch (data[0x147]) {
-            0x00 => initCart(MBC1, allocator, data, ram_size),
+            0x00 => initCart(MBC0, allocator, data, ram_size),
             0x01, 0x02, 0x03 => initCart(MBC1, allocator, data, ram_size),
             0x05, 0x06 => initCart(MBC2, allocator, data, ram_size),
             else => error.UnimplementedCartridge,

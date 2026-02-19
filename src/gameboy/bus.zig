@@ -3,6 +3,7 @@ const Cartridge = @import("../cartridge/cartridge.zig").Cartridge;
 const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const Ppu = @import("ppu.zig").Ppu;
+const Joypad = @import("joypad.zig").Joypad;
 
 pub const Bus = struct {
     wram_0: [0x1000]u8, // 0xC000-0xCFFF: 4 KiB WRAM
@@ -13,7 +14,7 @@ pub const Bus = struct {
     timer: *Timer,
     interrupts: *InterruptController,
     ppu: *Ppu,
-    // joypad: *Joypad,  // future
+    joypad: *Joypad, // future
     // apu: *APU,        // future
 
     pub fn init(
@@ -21,6 +22,7 @@ pub const Bus = struct {
         timer: *Timer,
         interrupts: *InterruptController,
         ppu: *Ppu,
+        joypad: *Joypad,
     ) Bus {
         return Bus{
             .wram_0 = [_]u8{0} ** 0x1000,
@@ -30,6 +32,7 @@ pub const Bus = struct {
             .timer = timer,
             .interrupts = interrupts,
             .ppu = ppu,
+            .joypad = joypad,
         };
     }
     pub fn read8(self: *Bus, address: u16) u8 {
@@ -50,8 +53,10 @@ pub const Bus = struct {
             0xFE00...0xFE9F => self.ppu.read8(address),
             0xFEA0...0xFEFF => 0xFF,
 
-            0xFF00 => 0xFF, // joypad
-            0xFF01, 0xFF02 => 0xFF, // serial
+            0xFF00 => self.joypad.read(address), // joypad
+            0xFF01 => 0xFF, // serial data
+            0xFF02 => 0x7C, // serial control
+
             0xFF03 => 0xFF,
             // Timer registers
             0xFF04...0xFF07 => self.timer.read8(address),
@@ -59,7 +64,8 @@ pub const Bus = struct {
             // Interrupt controller
             0xFF0F => self.interrupts.read8(address),
             0xFF08...0xFF0E => 0xFF,
-            0xFF10...0xFF26 => 0xFF, // audio
+            0xFF10...0xFF25 => 0xFF, // audio registers (unimplemented)
+            0xFF26 => 0xF0, // NR52: audio on (bit 7), no channels active (bits 0-3 clear)
             0xFF30...0xFF3F => 0xFF, // audio wave pattern
 
             0xFF40...0xFF4B => self.ppu.read8(address),
@@ -82,7 +88,7 @@ pub const Bus = struct {
             0xFE00...0xFE9F => self.ppu.write8(address, value),
             0xFEA0...0xFEFF => {},
 
-            0xFF00 => {},
+            0xFF00 => self.joypad.write(address, value),
             0xFF01 => {},
             0xFF02 => {},
             0xFF03 => {},

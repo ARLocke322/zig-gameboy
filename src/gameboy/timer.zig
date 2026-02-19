@@ -39,20 +39,20 @@ pub const Timer = struct {
         switch (addr) {
             0xFF04 => {
                 self.DIV = 0x00;
-                // self.div_counter = 0;
-                // self.tima_counter = 0;
+                self.div_counter = 0;
+                self.tima_counter = 0;
             },
             0xFF05 => self.TIMA = value,
             0xFF06 => self.TMA = value,
             0xFF07 => {
                 self.TAC = value & 0x07;
-                // self.tima_counter = 0;
+                self.tima_counter = 0;
             },
             else => unreachable,
         }
     }
 
-    pub fn tick(self: *Timer, cycles: u8) void {
+    pub fn tick(self: *Timer, cycles: u16) void {
         self.div_counter += cycles;
         if (self.div_counter >= 256) {
             self.div_counter -= 256;
@@ -62,7 +62,7 @@ pub const Timer = struct {
         if (self.TAC & 0x04 != 0) {
             self.tima_counter += cycles;
             const increment_rate = get_clock_select(@truncate(self.TAC & 0x03));
-            if (self.tima_counter >= increment_rate) {
+            while (self.tima_counter >= increment_rate) {
                 self.tima_counter -= increment_rate;
                 if (self.TIMA == 0xFF) {
                     self.TIMA = self.TMA;

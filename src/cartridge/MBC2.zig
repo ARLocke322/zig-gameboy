@@ -7,7 +7,7 @@ pub const MBC2 = struct {
     rom: []u8,
     ram: []u4,
 
-    rom_bank: u4,
+    rom_bank: u8,
 
     ram_enabled: bool,
 

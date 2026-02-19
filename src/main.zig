@@ -4,6 +4,7 @@ const Cpu = @import("./gameboy/cpu.zig").Cpu;
 const Bus = @import("./gameboy/bus.zig").Bus;
 const Ppu = @import("./gameboy/ppu.zig").Ppu;
 const Timer = @import("./gameboy/timer.zig").Timer;
+const Joypad = @import("./gameboy/joypad.zig").Joypad;
 const InterruptController = @import("./gameboy/interrupt_controller.zig").InterruptController;
 const std = @import("std");
 const SDL = @cImport({
@@ -44,7 +45,8 @@ pub fn main(init: std.process.Init) !void {
     var interrupt_controller = InterruptController.init();
     var timer = Timer.init(&interrupt_controller);
     var ppu = Ppu.init(&interrupt_controller);
-    var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu);
+    var joypad = Joypad.init();
+    var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu, &joypad);
     var cpu = Cpu.init(&bus, &interrupt_controller);
 
     // Initialise console
@@ -82,7 +84,19 @@ pub fn main(init: std.process.Init) !void {
 
         var ev: SDL.SDL_Event = undefined;
         while (SDL.SDL_PollEvent(&ev)) {
-            if (ev.type == SDL.SDL_EVENT_QUIT) break :mainLoop;
+            switch (ev.type) {
+                SDL.SDL_EVENT_QUIT => break :mainLoop,
+
+                SDL.SDL_EVENT_KEY_DOWN => {
+                    if (!ev.key.repeat) setKey(&joypad, ev.key.scancode, true);
+                },
+
+                SDL.SDL_EVENT_KEY_UP => {
+                    setKey(&joypad, ev.key.scancode, false);
+                },
+
+                else => {},
+            }
         }
 
         var frame_cycles: u64 = 0;
@@ -116,6 +130,34 @@ pub fn main(init: std.process.Init) !void {
 fn sdlPanic() noreturn {
     const str = @as(?[*:0]const u8, SDL.SDL_GetError()) orelse "unknown error";
     @panic(std.mem.sliceTo(str, 0));
+}
+
+fn setKey(jp: *Joypad, sc: SDL.SDL_Scancode, pressed: bool) void {
+    const value: u8 = if (pressed) 0 else 1;
+
+    switch (sc) {
+        // D-pad
+        SDL.SDL_SCANCODE_RIGHT => setBit(&jp.dpad, 0, value),
+        SDL.SDL_SCANCODE_LEFT => setBit(&jp.dpad, 1, value),
+        SDL.SDL_SCANCODE_UP => setBit(&jp.dpad, 2, value),
+        SDL.SDL_SCANCODE_DOWN => setBit(&jp.dpad, 3, value),
+
+        // Buttons
+        SDL.SDL_SCANCODE_Z => setBit(&jp.buttons, 0, value), // A
+        SDL.SDL_SCANCODE_X => setBit(&jp.buttons, 1, value), // B
+        SDL.SDL_SCANCODE_RSHIFT => setBit(&jp.buttons, 2, value), // Select
+        SDL.SDL_SCANCODE_RETURN => setBit(&jp.buttons, 3, value), // Start
+
+        else => {},
+    }
+}
+
+fn setBit(byte: *u8, bit: u3, value: u8) void {
+    if (value == 0) {
+        byte.* &= ~(@as(u8, 1) << bit); // pressed
+    } else {
+        byte.* |= (@as(u8, 1) << bit); // released
+    }
 }
 
 fn load_file_into_buffer(
