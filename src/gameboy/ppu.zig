@@ -75,7 +75,7 @@ pub const Ppu = struct {
             0xFF41 => self.stat,
             0xFF42 => self.scy,
             0xFF43 => self.scx,
-            0xFF44 => 0x90, //self.ly,
+            0xFF44 => self.ly,
             0xFF45 => self.lyc,
             0xFF46 => self.dma,
             0xFF47 => self.bgp,
@@ -99,7 +99,10 @@ pub const Ppu = struct {
             0x9800...0x9BFF => self.tile_map_1[addr - 0x9800] = val,
             0x9C00...0x9FFF => self.tile_map_2[addr - 0x9C00] = val,
             0xFE00...0xFE9F => self.oam[addr - 0xFE00] = val,
-            0xFF40 => self.lcd_control = val,
+            0xFF40 => {
+                // std.debug.print("wrote to FF40\n", .{});
+                self.lcd_control = val;
+            },
             0xFF41 => {
                 self.stat = (val & 0xF8) | (self.stat & 0x07);
                 self.handle_stat_interrupt();
@@ -367,7 +370,7 @@ pub const Ppu = struct {
 
                 if (color_idx == 0) continue; // transparent
 
-                const buffer_idx = self.ly * 160 + screen_x;
+                const buffer_idx = @as(u32, self.ly) * 160 + screen_x;
                 if (priority == 0 or self.display_buffer[buffer_idx] == palette[0]) {
                     self.display_buffer[buffer_idx] = palette[color_idx];
                 }

@@ -14,7 +14,7 @@ pub const MBC1 = struct {
 
     rom_banking: bool,
 
-    pub fn init(allocator: std.mem.Allocator, data: []u8, ram_size: usize) !MBC1 {
+    pub fn init(allocator: std.mem.Allocator, data: []const u8, ram_size: usize) !MBC1 {
         assert(data.len <= (2 * 1024 * 1024)); // Up to 2 MiB
         assert(ram_size <= (32 * 1024)); // Up to 32 KiB
         assert(data.len / 0x4000 > 0 and std.math.isPowerOfTwo(data.len / 0x4000));
@@ -36,8 +36,9 @@ pub const MBC1 = struct {
         };
     }
 
-    pub fn read8(self: *MBC1, addr: u16) u8 {
-        assert(addr >= 0x000 and addr <= 0xBFFF);
+    pub fn read(self: *MBC1, addr: u16) u8 {
+        assert((addr >= 0x000 and addr <= 0x7FFF) or
+            (addr >= 0xA000 and addr <= 0xBFFF));
         return switch (addr) {
             0x0000...0x3FFF => self.rom[addr],
             0x4000...0x7FFF => {
@@ -56,8 +57,9 @@ pub const MBC1 = struct {
         };
     }
 
-    pub fn write8(self: *MBC1, addr: u16, val: u8) void {
-        assert(addr >= 0x000 and addr <= 0x7FFF);
+    pub fn write(self: *MBC1, addr: u16, val: u8) void {
+        assert((addr >= 0x000 and addr <= 0x7FFF) or
+            (addr >= 0xA000 and addr <= 0xBFFF));
         switch (addr) {
             0x0000...0x1FFF => {
                 if (val & 0xF == 0xA) {
@@ -81,15 +83,14 @@ pub const MBC1 = struct {
                 self.rom_banking = (val & 0x1 == 0x0);
                 if (self.rom_banking) self.ram_bank = 0 else self.rom_bank &= 0x1F;
             },
+            0xA000...0xBFFF => {
+                if (self.ram_enabled) {
+                    const ix = (addr - 0xA000) + (@as(u16, self.ram_bank) * 0x2000);
+                    assert(ix < self.ram.len);
+                    self.ram[ix] = val;
+                }
+            },
             else => unreachable,
-        }
-    }
-
-    pub fn write8RAM(self: *MBC1, addr: u16, val: u8) void {
-        if (self.ram_enabled) {
-            const ix = (addr - 0xA000) + (@as(u16, self.ram_bank) * 0x2000);
-            assert(ix < self.ram.len);
-            self.ram[ix] = val;
         }
     }
 
