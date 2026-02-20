@@ -1,8 +1,19 @@
 # Tasks
 
 ## To Do
-- [ ] apu
-- [ ] :
+
+- [ ] APU
+- [ ] MBC5
+- [ ] CGB
+- [ ] Save + Load state
+- [ ] rom selection / show file dialog
+- [ ] toggleable speed up
+
+## Tests
+
+- [ ] MBC1 tests
+- [ ] MBC2 tests
+- [ ] MBC3 tests
 
 ## Done
 

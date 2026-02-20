@@ -28,9 +28,10 @@ pub const MBC3 = struct {
 
     pub fn init(allocator: std.mem.Allocator, data: []const u8, ram_size: usize) !MBC3 {
         if ((data.len > (2 * 1024 * 1024)) or
-            (ram_size > (32 * 1024)) or
             ((data.len % 0x4000) != 0) or
-            (!std.math.isPowerOfTwo(@divFloor(data.len, 0x4000))))
+            (!std.math.isPowerOfTwo(@divFloor(data.len, 0x4000))) or
+            (ram_size > 32 * 1024) or
+            (ram_size > 0 and ram_size % 0x2000 != 0))
             return error.InvalidRom;
 
         const rom = try allocator.alloc(u8, data.len);
@@ -156,7 +157,7 @@ test "should return error with invalid ram/rom sized" {
     const too_big_data = [_]u8{0xFF} ** 0x204000;
     const too_small_data = [_]u8{0xFF} ** 0x2000;
     const undivisible_data = [_]u8{0xFF} ** 0x8001;
-    const not_p2_data = [_]u8{0xFF} ** 0xA000;
+    const not_p2_data = [_]u8{0xFF} ** 0xC000;
 
     try std.testing.expectError(error.InvalidRom, MBC3.init(
         std.testing.allocator,
@@ -184,5 +185,11 @@ test "should return error with invalid ram/rom sized" {
         std.testing.allocator,
         &valid_data,
         0xA000,
+    ));
+
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &valid_data,
+        0x3000,
     ));
 }
