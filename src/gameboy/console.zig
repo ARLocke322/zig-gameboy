@@ -39,7 +39,6 @@ pub const Console = struct {
         //stdout: *std.Io.Writer,
     ) !u8 {
         var cycles: u8 = 1; // minimum tick while halted
-
         if (self.cpu.IME_scheduled) {
             self.cpu.IME = true;
             self.cpu.IME_scheduled = false;

@@ -2,11 +2,7 @@
 
 ## To Do
 
-- [ ] timing
 - [ ] MCB2 and MCB3
-- [ ] sort out bus read and write structure
-- [ ] fix test rom
-- [ ] ppu
 
 ## Done
 
@@ -31,6 +27,10 @@
 - [x] rom loading
 - [x] refactor component structure re pointers
 - [x] sort out load rom with new IO
+- [x] sort out bus read and write structure
+- [x] fix test rom
+- [x] ppu
+- [x] timing
 
 ## Cycle accurate stuff
 

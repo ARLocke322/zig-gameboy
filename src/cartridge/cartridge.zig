@@ -1,7 +1,7 @@
 const MBC0 = @import("MBC0.zig").MBC0;
 const MBC1 = @import("MBC1.zig").MBC1;
 const MBC2 = @import("MBC2.zig").MBC2;
-const MBC5 = @import("MBC5.zig").MBC5;
+const MBC3 = @import("MBC3.zig").MBC3;
 
 const std = @import("std");
 const assert = std.debug.assert;
@@ -18,8 +18,9 @@ pub const Cartridge = struct {
         std.debug.print("MBC Bit: {x}\n", .{data[0x147]});
         return switch (data[0x147]) {
             0x00 => initCart(MBC0, allocator, data, ram_size),
-            0x01, 0x02, 0x03 => initCart(MBC1, allocator, data, ram_size),
-            0x05, 0x06 => initCart(MBC2, allocator, data, ram_size),
+            0x01...0x03 => initCart(MBC1, allocator, data, ram_size),
+            0x05...0x06 => initCart(MBC2, allocator, data, ram_size),
+            0x0F...0x13 => initCart(MBC3, allocator, data, ram_size),
             else => error.UnimplementedCartridge,
         };
     }
