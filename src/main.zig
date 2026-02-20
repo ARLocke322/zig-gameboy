@@ -12,6 +12,7 @@ const SDL = @cImport({
 });
 
 const FRAME_TIME_MS: u32 = 16; // ~60 FPS, close enough
+// const FRAME_TIME_MS: u32 = 1; // ~60 FPS, close enough
 const SCALE = 4;
 const WIDTH = 160;
 const HEIGHT = 144;
@@ -101,7 +102,7 @@ pub fn main(init: std.process.Init) !void {
 
         var frame_cycles: u64 = 0;
         while (frame_cycles < CYCLES_PER_FRAME) {
-            frame_cycles += try gb.step();
+            frame_cycles += try gb.step() * 4;
         }
 
         _ = SDL.SDL_UpdateTexture(

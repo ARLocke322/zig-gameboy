@@ -9,6 +9,7 @@ pub const Bus = struct {
     wram_0: [0x1000]u8, // 0xC000-0xCFFF: 4 KiB WRAM
     wram_n: [0x1000]u8, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
     hram: [0x7F]u8, // 0xFF80-0xFFFE: HRAM
+    audio_regs: [0x30]u8, // FF10-FF3F
 
     cartridge: *Cartridge,
     timer: *Timer,
@@ -28,6 +29,7 @@ pub const Bus = struct {
             .wram_0 = [_]u8{0} ** 0x1000,
             .wram_n = [_]u8{0} ** 0x1000,
             .hram = [_]u8{0} ** 0x7F,
+            .audio_regs = [_]u8{0} ** 0x30,
             .cartridge = cartridge,
             .timer = timer,
             .interrupts = interrupts,
@@ -43,7 +45,7 @@ pub const Bus = struct {
             0xC000...0xCFFF => self.wram_0[address - 0xC000],
             0xD000...0xDFFF => self.wram_n[address - 0xD000],
             0xE000...0xFDFF => blk: {
-                const mirrored = address - 0x2000; // 0xE000 -> 0xC000
+                const mirrored = address - 0x2000;
                 if (mirrored < 0xD000) {
                     break :blk self.wram_0[mirrored - 0xC000];
                 } else {
@@ -64,9 +66,10 @@ pub const Bus = struct {
             // Interrupt controller
             0xFF0F => self.interrupts.read8(address),
             0xFF08...0xFF0E => 0xFF,
-            0xFF10...0xFF25 => 0xFF, // audio registers (unimplemented)
-            0xFF26 => 0xF0, // NR52: audio on (bit 7), no channels active (bits 0-3 clear)
-            0xFF30...0xFF3F => 0xFF, // audio wave pattern
+            0xFF10...0xFF25 => self.audio_regs[address - 0xFF10],
+            0xFF26 => 0xF0 | (self.audio_regs[0x16] & 0x80), // preserve master enable, channels always inactive
+            0xFF27...0xFF2F => 0xFF,
+            0xFF30...0xFF3F => self.audio_regs[address - 0xFF10],
 
             0xFF40...0xFF4B => self.ppu.read8(address),
             0xFF4C...0xFF4D => 0xFF, // KEY CGB
@@ -97,7 +100,9 @@ pub const Bus = struct {
             0xFF04...0xFF07 => self.timer.write8(address, value),
             0xFF08...0xFF0E => {}, // Unimplemented
             0xFF0F => self.interrupts.write8(address, value),
-            0xFF10...0xFF3F => {}, // Sound
+            0xFF10...0xFF3F => {
+                self.audio_regs[address - 0xFF10] = value;
+            },
             0xFF40...0xFF45, 0xFF47...0xFF4B => self.ppu.write8(address, value),
             0xFF46 => {
                 self.ppu.dma = value; // Store DMA register
