@@ -1,8 +1,8 @@
 # Tasks
 
 ## To Do
-
-- [ ] MCB2 and MCB3
+- [ ] apu
+- [ ] :
 
 ## Done
 
@@ -31,6 +31,7 @@
 - [x] fix test rom
 - [x] ppu
 - [x] timing
+- [x] MCB2 and MCB3
 
 ## Cycle accurate stuff
 
