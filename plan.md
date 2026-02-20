@@ -2,7 +2,18 @@
 
 ## To Do
 
-- [ ] MCB2 and MCB3
+- [ ] APU
+- [ ] MBC5
+- [ ] CGB
+- [ ] Save + Load state
+- [ ] rom selection / show file dialog
+- [ ] toggleable speed up
+
+## Tests
+
+- [ ] MBC1 tests
+- [ ] MBC2 tests
+- [ ] MBC3 tests
 
 ## Done
 
@@ -31,6 +42,7 @@
 - [x] fix test rom
 - [x] ppu
 - [x] timing
+- [x] MCB2 and MCB3
 
 ## Cycle accurate stuff
 

@@ -27,9 +27,12 @@ pub const MBC3 = struct {
     rtc_latch: u8 = 0,
 
     pub fn init(allocator: std.mem.Allocator, data: []const u8, ram_size: usize) !MBC3 {
-        assert(data.len <= (2 * 1024 * 1024)); // Up to 2 MiB
-        assert(ram_size <= (32 * 1024)); // Up to 32 KiB
-        assert(data.len / 0x4000 > 0 and std.math.isPowerOfTwo(data.len / 0x4000));
+        if ((data.len > (2 * 1024 * 1024)) or
+            ((data.len % 0x4000) != 0) or
+            (!std.math.isPowerOfTwo(@divFloor(data.len, 0x4000))) or
+            (ram_size > 32 * 1024) or
+            (ram_size > 0 and ram_size % 0x2000 != 0))
+            return error.InvalidRom;
 
         const rom = try allocator.alloc(u8, data.len);
         @memcpy(rom, data);
@@ -131,3 +134,62 @@ pub const MBC3 = struct {
         self.allocator.free(self.ram);
     }
 };
+
+// --- TESTS ---
+
+test "should init with valid ram/rom sizes" {
+    const data = [_]u8{0xFF} ** 0x200000; // 2MB
+    var cart = try MBC3.init(std.testing.allocator, data[0..0x200000], 0x8000);
+    defer cart.deinit();
+
+    try std.testing.expect(cart.rom[0] == 0xFF);
+    try std.testing.expect(cart.rom[0x1FFFFF] == 0xFF);
+    try std.testing.expect(cart.ram[0] == 0x00);
+    try std.testing.expect(cart.rom.len == 0x200000);
+    try std.testing.expect(cart.ram.len == 0x8000);
+    try std.testing.expect(cart.rom_bank == 1);
+    try std.testing.expect(cart.ram_bank == 0);
+    try std.testing.expect(!cart.ram_timer_enabled);
+}
+
+test "should return error with invalid ram/rom sized" {
+    const valid_data = [_]u8{0xFF} ** 0xA000;
+    const too_big_data = [_]u8{0xFF} ** 0x204000;
+    const too_small_data = [_]u8{0xFF} ** 0x2000;
+    const undivisible_data = [_]u8{0xFF} ** 0x8001;
+    const not_p2_data = [_]u8{0xFF} ** 0xC000;
+
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &too_big_data,
+        0,
+    ));
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &too_small_data,
+        0,
+    ));
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &undivisible_data,
+        0,
+    ));
+
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &not_p2_data,
+        0,
+    ));
+
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &valid_data,
+        0xA000,
+    ));
+
+    try std.testing.expectError(error.InvalidRom, MBC3.init(
+        std.testing.allocator,
+        &valid_data,
+        0x3000,
+    ));
+}

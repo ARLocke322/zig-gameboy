@@ -11,7 +11,7 @@ const SDL = @cImport({
     @cInclude("SDL3/SDL.h");
 });
 
-const FRAME_TIME_MS: u32 = 16; // ~60 FPS, close enough
+const FRAME_TIME_MS: u32 = 16 / 4; // ~60 FPS, close enough
 // const FRAME_TIME_MS: u32 = 1; // ~60 FPS, close enough
 const SCALE = 4;
 const WIDTH = 160;
