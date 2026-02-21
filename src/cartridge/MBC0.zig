@@ -33,6 +33,16 @@ pub const MBC0 = struct {
         _ = val;
     }
 
+    pub fn save(self: *MBC0) []u8 {
+        _ = self;
+        return &[_]u8{};
+    }
+
+    pub fn load(self: *MBC0, data: []u8) void {
+        _ = self;
+        _ = data;
+    }
+
     pub fn deinit(self: *MBC0) void {
         self.allocator.free(self.rom);
     }

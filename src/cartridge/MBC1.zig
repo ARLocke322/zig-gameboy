@@ -94,6 +94,15 @@ pub const MBC1 = struct {
         }
     }
 
+    pub fn save(self: *MBC1) []u8 {
+        return self.ram;
+    }
+
+    pub fn load(self: *MBC1, data: []u8) void {
+        assert(data.len == self.ram.len);
+        @memcpy(self.ram, data);
+    }
+
     fn update_invalid_rom_bank(self: *MBC1) void {
         if (self.rom_bank == 0x00 or self.rom_bank == 0x20 or self.rom_bank == 0x40 or self.rom_bank == 0x60) {
             self.rom_bank += 1;
