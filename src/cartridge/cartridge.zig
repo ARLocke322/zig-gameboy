@@ -11,6 +11,8 @@ pub const Cartridge = struct {
     readFnPtr: *const fn (ptr: *anyopaque, address: u16) u8,
     writeFnPtr: *const fn (ptr: *anyopaque, address: u16, value: u8) void,
     deinitFnPtr: *const fn (ptr: *anyopaque, allocator: std.mem.Allocator) void,
+    saveFnPtr: *const fn (ptr: *anyopaque) []u8,
+    loadFnPtr: *const fn (ptr: *anyopaque, save_data: []u8) void,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, data: []const u8) !Cartridge {
@@ -37,6 +39,14 @@ pub const Cartridge = struct {
         self.writeFnPtr(self.ptr, address, value);
     }
 
+    pub fn save(self: Cartridge) []u8 {
+        return self.saveFnPtr(self.ptr);
+    }
+
+    pub fn load(self: Cartridge, data: []u8) void {
+        self.loadFnPtr(self.ptr, data);
+    }
+
     // --- Private ---
 
     fn initCart(comptime T: type, allocator: std.mem.Allocator, data: []const u8, ram_size: usize) !Cartridge {
@@ -49,6 +59,12 @@ pub const Cartridge = struct {
             fn write(p: *anyopaque, address: u16, value: u8) void {
                 @as(*T, @ptrCast(@alignCast(p))).write(address, value);
             }
+            fn save(p: *anyopaque) []u8 {
+                return @as(*T, @ptrCast(@alignCast(p))).save();
+            }
+            fn load(p: *anyopaque, save_data: []u8) void {
+                return @as(*T, @ptrCast(@alignCast(p))).load(save_data);
+            }
             fn deinit(p: *anyopaque, alloc: std.mem.Allocator) void {
                 const self: *T = @ptrCast(@alignCast(p));
                 self.deinit();
@@ -60,6 +76,8 @@ pub const Cartridge = struct {
             .readFnPtr = &impl.read,
             .writeFnPtr = &impl.write,
             .deinitFnPtr = &impl.deinit,
+            .saveFnPtr = &impl.save,
+            .loadFnPtr = &impl.load,
             .allocator = allocator,
         };
     }

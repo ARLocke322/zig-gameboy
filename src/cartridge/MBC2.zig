@@ -5,7 +5,7 @@ pub const MBC2 = struct {
     allocator: std.mem.Allocator,
 
     rom: []u8,
-    ram: []u4,
+    ram: []u8,
 
     rom_bank: u8,
 
@@ -19,7 +19,7 @@ pub const MBC2 = struct {
         const rom = try allocator.alloc(u8, data.len);
         @memcpy(rom, data);
 
-        const ram = try allocator.alloc(u4, ram_size);
+        const ram = try allocator.alloc(u8, ram_size);
         @memset(ram, 0);
 
         return MBC2{
@@ -50,7 +50,7 @@ pub const MBC2 = struct {
             else
                 0xFF,
             else => unreachable,
-        };
+        } & 0xF;
     }
 
     pub fn write(self: *MBC2, addr: u16, val: u8) void {
@@ -74,6 +74,15 @@ pub const MBC2 = struct {
 
             else => unreachable,
         }
+    }
+
+    pub fn save(self: *MBC2) []u8 {
+        return self.ram;
+    }
+
+    pub fn load(self: *MBC2, data: []u8) void {
+        assert(data.len == self.ram.len);
+        @memcpy(self.ram, data);
     }
 
     fn update_invalid_rom_bank(self: *MBC2) void {

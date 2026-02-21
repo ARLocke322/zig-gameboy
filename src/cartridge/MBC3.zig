@@ -50,6 +50,11 @@ pub const MBC3 = struct {
         };
     }
 
+    pub fn deinit(self: *MBC3) void {
+        self.allocator.free(self.rom);
+        self.allocator.free(self.ram);
+    }
+
     pub fn read(self: *MBC3, addr: u16) u8 {
         assert((addr >= 0x0000 and addr <= 0x7FFF) or
             addr >= 0xA000 and addr <= 0xBFFF);
@@ -95,6 +100,15 @@ pub const MBC3 = struct {
         }
     }
 
+    pub fn save(self: *MBC3) []u8 {
+        return self.ram;
+    }
+
+    pub fn load(self: *MBC3, data: []u8) void {
+        assert(data.len == self.ram.len);
+        @memcpy(self.ram, data);
+    }
+
     fn writeRamOrRtc(self: *MBC3, addr: u16, val: u8) void {
         switch (self.ram_bank) {
             0x00...0x07 => if (self.ram_timer_enabled and self.ram.len > 0) {
@@ -127,11 +141,6 @@ pub const MBC3 = struct {
             0x0C => return self.latched_rtc_dh,
             else => return 0xFF,
         }
-    }
-
-    pub fn deinit(self: *MBC3) void {
-        self.allocator.free(self.rom);
-        self.allocator.free(self.ram);
     }
 };
 

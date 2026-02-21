@@ -29,18 +29,31 @@ pub fn main(init: std.process.Init) !void {
     // Read Argv for file path
     var args = try init.minimal.args.iterateAllocator(allocator);
     _ = args.skip();
-    const path: [:0]const u8 = args.next() orelse return error.MissingArgs;
+    const path: []const u8 = args.next() orelse return error.MissingArgs;
 
     // Allocate buffer to store ROM
     const buffer = try allocator.alloc(u8, 4 * 1024 * 1024);
     defer allocator.free(buffer);
 
     // Load ROM into buffer
-    const rom_buffer = try load_file_into_buffer(allocator, io, path, buffer);
+    const rom_buffer = try loadFile(allocator, io, path, buffer);
     defer allocator.free(rom_buffer);
+
+    // Convert ROM path to save path
+    var buf: [256]u8 = undefined;
+    const save_path: []const u8 = try std.fmt.bufPrint(&buf, "saves/{s}", .{path[4..]});
+    @memset(buffer, 0);
+
+    // Load Save File into buffer
+    const save_file_buffer = loadFile(allocator, io, save_path, buffer) catch null;
+    defer if (save_file_buffer) |s| allocator.free(s);
 
     // Initialise Cartridge
     var cart = try Cartridge.init(allocator, rom_buffer);
+
+    // Load the save data if it exists
+    if (save_file_buffer) |s| cart.load(s);
+
     defer cart.deinit();
 
     var interrupt_controller = InterruptController.init();
@@ -86,7 +99,10 @@ pub fn main(init: std.process.Init) !void {
         var ev: SDL.SDL_Event = undefined;
         while (SDL.SDL_PollEvent(&ev)) {
             switch (ev.type) {
-                SDL.SDL_EVENT_QUIT => break :mainLoop,
+                SDL.SDL_EVENT_QUIT => {
+                    writeSaveData(io, save_path, cart.save());
+                    break :mainLoop;
+                },
 
                 SDL.SDL_EVENT_KEY_DOWN => {
                     if (!ev.key.repeat) setKey(&joypad, ev.key.scancode, true);
@@ -161,10 +177,10 @@ fn setBit(byte: *u8, bit: u3, value: u8) void {
     }
 }
 
-fn load_file_into_buffer(
+fn loadFile(
     allocator: std.mem.Allocator,
     io: std.Io,
-    path: [:0]const u8,
+    path: []const u8,
     buffer: []u8,
 ) ![:0]u8 {
     // Open file based on CWD and provided relative path
@@ -175,6 +191,13 @@ fn load_file_into_buffer(
     var reader = file.reader(io, buffer);
 
     // Read the file contents into the buffer
-    const rom_buffer = try std.zig.readSourceFileToEndAlloc(allocator, &reader);
-    return rom_buffer;
+    return try std.zig.readSourceFileToEndAlloc(allocator, &reader);
+}
+
+fn writeSaveData(io: std.Io, path: []const u8, data: []u8) void {
+    const cwd: std.Io.Dir = std.Io.Dir.cwd();
+    _ = cwd;
+    _ = path;
+    _ = io;
+    _ = data;
 }
