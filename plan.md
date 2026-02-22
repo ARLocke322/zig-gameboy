@@ -43,6 +43,7 @@
 - [x] ppu
 - [x] timing
 - [x] MCB2 and MCB3
+- [x] Save + Load game
 
 ## Cycle accurate stuff
 
