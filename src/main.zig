@@ -100,7 +100,8 @@ pub fn main(init: std.process.Init) !void {
         while (SDL.SDL_PollEvent(&ev)) {
             switch (ev.type) {
                 SDL.SDL_EVENT_QUIT => {
-                    writeSaveData(io, save_path, cart.save());
+                    try writeSaveData(io, save_path, cart.save());
+                    std.debug.print("Game Saved\n");
                     break :mainLoop;
                 },
 
@@ -194,10 +195,14 @@ fn loadFile(
     return try std.zig.readSourceFileToEndAlloc(allocator, &reader);
 }
 
-fn writeSaveData(io: std.Io, path: []const u8, data: []u8) void {
+fn writeSaveData(
+    io: std.Io,
+    path: []const u8,
+    data: []const u8,
+) !void {
     const cwd: std.Io.Dir = std.Io.Dir.cwd();
-    _ = cwd;
-    _ = path;
-    _ = io;
-    _ = data;
+    const file: std.Io.File = try cwd.createFile(io, path, .{ .read = true });
+    defer file.close(io);
+
+    try file.writeStreamingAll(io, data);
 }
