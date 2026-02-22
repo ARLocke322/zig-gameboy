@@ -11,8 +11,8 @@ const SDL = @cImport({
     @cInclude("SDL3/SDL.h");
 });
 
-const FRAME_TIME_MS: u32 = 16 / 4; // ~60 FPS, close enough
-// const FRAME_TIME_MS: u32 = 1; // ~60 FPS, close enough
+var frame_time_ms: u32 = 16; // ~60 FPS, close enough
+// const frame_time_ms: u32 = 1; // ~60 FPS, close enough
 const SCALE = 4;
 const WIDTH = 160;
 const HEIGHT = 144;
@@ -101,12 +101,16 @@ pub fn main(init: std.process.Init) !void {
             switch (ev.type) {
                 SDL.SDL_EVENT_QUIT => {
                     try writeSaveData(io, save_path, cart.save());
-                    std.debug.print("Game Saved\n");
+                    std.debug.print("Game Saved\n", .{});
                     break :mainLoop;
                 },
 
                 SDL.SDL_EVENT_KEY_DOWN => {
-                    if (!ev.key.repeat) setKey(&joypad, ev.key.scancode, true);
+                    if (ev.key.scancode == SDL.SDL_SCANCODE_S and !ev.key.repeat) {
+                        frame_time_ms = if (frame_time_ms == 16) 4 else 16;
+                    } else if (!ev.key.repeat) {
+                        setKey(&joypad, ev.key.scancode, true);
+                    }
                 },
 
                 SDL.SDL_EVENT_KEY_UP => {
@@ -139,8 +143,8 @@ pub fn main(init: std.process.Init) !void {
             SDL.SDL_GetPerformanceFrequency(),
         ));
 
-        if (elapsed_ms < FRAME_TIME_MS) {
-            SDL.SDL_Delay(FRAME_TIME_MS - elapsed_ms);
+        if (elapsed_ms < frame_time_ms) {
+            SDL.SDL_Delay(frame_time_ms - elapsed_ms);
         }
     }
 }
