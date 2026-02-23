@@ -5,6 +5,7 @@ const Bus = @import("./gameboy/bus.zig").Bus;
 const Ppu = @import("./gameboy/ppu.zig").Ppu;
 const Timer = @import("./gameboy/timer.zig").Timer;
 const Joypad = @import("./gameboy/joypad.zig").Joypad;
+const Window = @import("./gui/window.zig").Window;
 const InterruptController = @import("./gameboy/interrupt_controller.zig").InterruptController;
 const std = @import("std");
 const SDL = @cImport({
@@ -66,120 +67,23 @@ pub fn main(init: std.process.Init) !void {
     // Initialise console
     var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu, &ppu);
 
-    // --- SDL
+    var window: Window = .init(&gb);
+    try window.run();
 
-    if (!SDL.SDL_Init(SDL.SDL_INIT_VIDEO)) sdlPanic();
-    defer SDL.SDL_Quit();
+    try writeSaveData(io, save_path, cart.save());
+    std.debug.print("Game Saved\n", .{});
 
-    const window = SDL.SDL_CreateWindow(
-        "Game Boy",
-        WIDTH * SCALE,
-        HEIGHT * SCALE,
-        0,
-    ) orelse sdlPanic();
-    defer SDL.SDL_DestroyWindow(window);
-
-    const renderer = SDL.SDL_CreateRenderer(window, null) orelse sdlPanic();
-    defer SDL.SDL_DestroyRenderer(renderer);
-
-    const texture = SDL.SDL_CreateTexture(
-        renderer,
-        SDL.SDL_PIXELFORMAT_ARGB8888,
-        SDL.SDL_TEXTUREACCESS_STREAMING,
-        WIDTH,
-        HEIGHT,
-    ) orelse sdlPanic();
-    defer SDL.SDL_DestroyTexture(texture);
-
-    const CYCLES_PER_FRAME: u64 = 70224;
-
-    mainLoop: while (true) {
-        const frame_start = SDL.SDL_GetPerformanceCounter();
-
-        var ev: SDL.SDL_Event = undefined;
-        while (SDL.SDL_PollEvent(&ev)) {
-            switch (ev.type) {
-                SDL.SDL_EVENT_QUIT => {
-                    try writeSaveData(io, save_path, cart.save());
-                    std.debug.print("Game Saved\n", .{});
-                    break :mainLoop;
-                },
-
-                SDL.SDL_EVENT_KEY_DOWN => {
-                    if (ev.key.scancode == SDL.SDL_SCANCODE_S and !ev.key.repeat) {
-                        frame_time_ms = if (frame_time_ms == 16) 4 else 16;
-                    } else if (!ev.key.repeat) {
-                        setKey(&joypad, ev.key.scancode, true);
-                    }
-                },
-
-                SDL.SDL_EVENT_KEY_UP => {
-                    setKey(&joypad, ev.key.scancode, false);
-                },
-
-                else => {},
-            }
-        }
-
-        var frame_cycles: u64 = 0;
-        while (frame_cycles < CYCLES_PER_FRAME) {
-            frame_cycles += try gb.step() * 4;
-        }
-
-        _ = SDL.SDL_UpdateTexture(
-            texture,
-            null,
-            @ptrCast(&gb.ppu.display_buffer),
-            WIDTH * @sizeOf(u32),
-        );
-
-        _ = SDL.SDL_RenderClear(renderer);
-        _ = SDL.SDL_RenderTexture(renderer, texture, null, null);
-        _ = SDL.SDL_RenderPresent(renderer);
-
-        const frame_end = SDL.SDL_GetPerformanceCounter();
-        const elapsed_ms: u32 = @intCast(@divFloor(
-            (frame_end - frame_start) * 1000,
-            SDL.SDL_GetPerformanceFrequency(),
-        ));
-
-        if (elapsed_ms < frame_time_ms) {
-            SDL.SDL_Delay(frame_time_ms - elapsed_ms);
-        }
-    }
-}
-
-fn sdlPanic() noreturn {
-    const str = @as(?[*:0]const u8, SDL.SDL_GetError()) orelse "unknown error";
-    @panic(std.mem.sliceTo(str, 0));
-}
-
-fn setKey(jp: *Joypad, sc: SDL.SDL_Scancode, pressed: bool) void {
-    const value: u8 = if (pressed) 0 else 1;
-
-    switch (sc) {
-        // D-pad
-        SDL.SDL_SCANCODE_RIGHT => setBit(&jp.dpad, 0, value),
-        SDL.SDL_SCANCODE_LEFT => setBit(&jp.dpad, 1, value),
-        SDL.SDL_SCANCODE_UP => setBit(&jp.dpad, 2, value),
-        SDL.SDL_SCANCODE_DOWN => setBit(&jp.dpad, 3, value),
-
-        // Buttons
-        SDL.SDL_SCANCODE_Z => setBit(&jp.buttons, 0, value), // A
-        SDL.SDL_SCANCODE_X => setBit(&jp.buttons, 1, value), // B
-        SDL.SDL_SCANCODE_RSHIFT => setBit(&jp.buttons, 2, value), // Select
-        SDL.SDL_SCANCODE_RETURN => setBit(&jp.buttons, 3, value), // Start
-
-        else => {},
-    }
-}
-
-fn setBit(byte: *u8, bit: u3, value: u8) void {
-    if (value == 0) {
-        byte.* &= ~(@as(u8, 1) << bit); // pressed
-    } else {
-        byte.* |= (@as(u8, 1) << bit); // released
-    }
+    //    if (path.len == 0) {
+    //      SDL.SDL_ShowOpenFileDialog(
+    //        fileDialogCallback,
+    //      null,
+    //    window,
+    //  null,
+    // 0,
+    //null,
+    //false,
+    //);
+    //}
 }
 
 fn loadFile(

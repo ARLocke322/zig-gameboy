@@ -1,0 +1,164 @@
+const std = @import("std");
+const Console = @import("../gameboy/console.zig").Console;
+const Joypad = @import("../gameboy/joypad.zig").Joypad;
+const SDL = @cImport({
+    @cInclude("SDL3/SDL.h");
+});
+
+var frame_time_ms: u32 = 16 / 4; // ~60 FPS, close enough
+// const frame_time_ms: u32 = 1; // ~60 FPS, close enough
+const SCALE = 4;
+const WIDTH = 160;
+const HEIGHT = 144;
+const CYCLES_PER_FRAME: u64 = 70224;
+
+pub const Window = struct {
+    gb: *Console,
+    window: *SDL.SDL_Window,
+    renderer: *SDL.SDL_Renderer,
+    texture: *SDL.SDL_Texture,
+
+    pub fn init(gb: *Console) Window {
+        if (!SDL.SDL_Init(SDL.SDL_INIT_VIDEO)) sdlPanic();
+
+        const window = SDL.SDL_CreateWindow(
+            "Game Boy",
+            WIDTH * SCALE,
+            HEIGHT * SCALE,
+            0,
+        ) orelse sdlPanic();
+
+        const renderer = SDL.SDL_CreateRenderer(window, null) orelse sdlPanic();
+
+        const texture = SDL.SDL_CreateTexture(
+            renderer,
+            SDL.SDL_PIXELFORMAT_ARGB8888,
+            SDL.SDL_TEXTUREACCESS_STREAMING,
+            WIDTH,
+            HEIGHT,
+        ) orelse sdlPanic();
+
+        return Window{
+            .gb = gb,
+            .window = window,
+            .renderer = renderer,
+            .texture = texture,
+        };
+    }
+
+    pub fn deinit(self: *Window) void {
+        SDL.SDL_DestroyTexture(self.texture);
+        SDL.SDL_DestroyRenderer(self.renderer);
+        SDL.SDL_DestroyWindow(self.window);
+        SDL.SDL_Quit();
+    }
+
+    pub fn run(self: *Window) !void {
+        mainLoop: while (true) {
+            const frame_start = SDL.SDL_GetPerformanceCounter();
+
+            var ev: SDL.SDL_Event = undefined;
+            while (SDL.SDL_PollEvent(&ev)) {
+                switch (ev.type) {
+                    SDL.SDL_EVENT_QUIT => {
+                        break :mainLoop;
+                    },
+
+                    SDL.SDL_EVENT_KEY_DOWN => {
+                        if (ev.key.scancode == SDL.SDL_SCANCODE_S and !ev.key.repeat) {
+                            frame_time_ms = if (frame_time_ms == 16) 4 else 16;
+                        } else if (!ev.key.repeat) {
+                            setKey(self.gb.bus.joypad, ev.key.scancode, true);
+                        }
+                    },
+
+                    SDL.SDL_EVENT_KEY_UP => {
+                        setKey(self.gb.bus.joypad, ev.key.scancode, false);
+                    },
+
+                    else => {},
+                }
+            }
+
+            var frame_cycles: u64 = 0;
+            while (frame_cycles < CYCLES_PER_FRAME) {
+                frame_cycles += try self.gb.step() * 4;
+            }
+
+            _ = SDL.SDL_UpdateTexture(
+                self.texture,
+                null,
+                @ptrCast(&self.gb.ppu.display_buffer),
+                WIDTH * @sizeOf(u32),
+            );
+
+            _ = SDL.SDL_RenderClear(self.renderer);
+            _ = SDL.SDL_RenderTexture(self.renderer, self.texture, null, null);
+            _ = SDL.SDL_RenderPresent(self.renderer);
+
+            const frame_end = SDL.SDL_GetPerformanceCounter();
+            const elapsed_ms: u32 = @intCast(@divFloor(
+                (frame_end - frame_start) * 1000,
+                SDL.SDL_GetPerformanceFrequency(),
+            ));
+
+            if (elapsed_ms < frame_time_ms) {
+                SDL.SDL_Delay(frame_time_ms - elapsed_ms);
+            }
+        }
+    }
+
+    fn sdlPanic() noreturn {
+        const str = @as(?[*:0]const u8, SDL.SDL_GetError()) orelse "unknown error";
+        @panic(std.mem.sliceTo(str, 0));
+    }
+
+    fn setKey(jp: *Joypad, sc: SDL.SDL_Scancode, pressed: bool) void {
+        const value: u8 = if (pressed) 0 else 1;
+
+        switch (sc) {
+            // D-pad
+            SDL.SDL_SCANCODE_RIGHT => setBit(&jp.dpad, 0, value),
+            SDL.SDL_SCANCODE_LEFT => setBit(&jp.dpad, 1, value),
+            SDL.SDL_SCANCODE_UP => setBit(&jp.dpad, 2, value),
+            SDL.SDL_SCANCODE_DOWN => setBit(&jp.dpad, 3, value),
+
+            // Buttons
+            SDL.SDL_SCANCODE_Z => setBit(&jp.buttons, 0, value), // A
+            SDL.SDL_SCANCODE_X => setBit(&jp.buttons, 1, value), // B
+            SDL.SDL_SCANCODE_RSHIFT => setBit(&jp.buttons, 2, value), // Select
+            SDL.SDL_SCANCODE_RETURN => setBit(&jp.buttons, 3, value), // Start
+
+            else => {},
+        }
+    }
+
+    fn setBit(byte: *u8, bit: u3, value: u8) void {
+        if (value == 0) {
+            byte.* &= ~(@as(u8, 1) << bit); // pressed
+        } else {
+            byte.* |= (@as(u8, 1) << bit); // released
+        }
+    }
+
+    fn fileDialogCallback(
+        userdata: ?*anyopaque,
+        filelist: [*c]const [*c]const u8,
+        filter: c_int,
+    ) callconv(.c) void {
+        _ = userdata;
+        _ = filter;
+
+        if (filelist == null) {
+            std.debug.print("Error or cancelled: {s}\n", .{SDL.SDL_GetError()});
+            return;
+        }
+
+        // filelist is a null-terminated array of null-terminated strings
+        var i: usize = 0;
+        while (filelist[i] != null) : (i += 1) {
+            const path = std.mem.span(filelist[i]);
+            std.debug.print("Selected: {s}\n", .{path});
+        }
+    }
+};
