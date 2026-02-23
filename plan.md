@@ -7,7 +7,6 @@
 - [ ] CGB
 - [ ] Save + Load state
 - [ ] rom selection / show file dialog
-- [ ] toggleable speed up
 
 ## Tests
 
@@ -44,6 +43,7 @@
 - [x] timing
 - [x] MCB2 and MCB3
 - [x] Save + Load game
+- [x] toggleable speed up
 
 ## Cycle accurate stuff
 
