@@ -27,15 +27,8 @@ pub fn main(init: std.process.Init) !void {
     // var stdout_buffer: [1024]u8 = undefined;
     // var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
     // const stdout = &stdout_writer.interface;
-    var isRelative: bool = true;
 
-    // Read Argv for file path
-    var args = try init.minimal.args.iterateAllocator(allocator);
-    _ = args.skip();
-    const path: []const u8 = args.next() orelse blk: {
-        isRelative = false;
-        break :blk try window.openFileDialog();
-    };
+    const path: []const u8 = try window.openFileDialog();
     std.debug.print("path: {s}\n", .{path});
 
     // Allocate buffer to store ROM
@@ -43,16 +36,18 @@ pub fn main(init: std.process.Init) !void {
     defer allocator.free(buffer);
 
     // Load ROM into buffer
-    const rom_buffer = try loadFile(allocator, io, path, buffer, isRelative);
+    const rom_buffer = try loadFile(allocator, io, path, buffer, false);
     defer allocator.free(rom_buffer);
 
     // Convert ROM path to save path
     var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const save_path: []const u8 = try std.fmt.bufPrint(&buf, "saves/{s}", .{path[4..]});
+    const rom_name = std.fs.path.basename(path);
+    const save_path: []const u8 = try std.fmt.bufPrint(&buf, "saves/{s}", .{rom_name});
+    std.debug.print("save path: {s}\n", .{save_path});
     @memset(buffer, 0);
 
     // Load Save File into buffer
-    const save_file_buffer = loadFile(allocator, io, save_path, buffer) catch null;
+    const save_file_buffer = loadFile(allocator, io, save_path, buffer, true) catch null;
     defer if (save_file_buffer) |s| allocator.free(s);
 
     // Initialise Cartridge
@@ -99,11 +94,11 @@ fn loadFile(
     isRelative: bool,
 ) ![:0]u8 {
     // Open file based on CWD and provided relative path
-    const cwd: std.Io.Dir = std.Io.Dir.cwd();
-    const file: std.Io.File = if (isRelative)
+    const cwd = std.Io.Dir.cwd();
+    const file = if (isRelative)
         try cwd.openFile(io, path, .{ .mode = .read_only })
     else
-        std.Io.Dir.openFileAbsoulte(io, path, .{ .mode = .read_only });
+        try std.Io.Dir.openFileAbsolute(io, path, .{ .mode = .read_only });
     defer file.close(io);
 
     var reader = file.reader(io, buffer);

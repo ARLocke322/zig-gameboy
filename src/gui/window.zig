@@ -18,6 +18,7 @@ pub const Window = struct {
     texture: *SDL.SDL_Texture,
     file_rom_path: [std.fs.max_path_bytes]u8 = undefined,
     file_rom_path_len: usize = 0,
+    file_dialog_cancelled: bool = false,
 
     pub fn init() Window {
         if (!SDL.SDL_Init(SDL.SDL_INIT_VIDEO)) sdlPanic();
@@ -109,21 +110,26 @@ pub const Window = struct {
     }
 
     pub fn openFileDialog(self: *Window) ![]const u8 {
+        var roms_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const roms_path = std.c.realpath("./roms", &roms_buf);
+
         SDL.SDL_ShowOpenFileDialog(
             fileDialogCallback,
             self,
             self.window,
             null,
             0,
-            null,
+            roms_path,
             false,
         );
         var ev: SDL.SDL_Event = undefined;
-        while (self.file_rom_path_len == 0) {
+        while (self.file_rom_path_len == 0 and !self.file_dialog_cancelled) {
             _ = SDL.SDL_WaitEventTimeout(&ev, 10);
         }
 
-        return &self.file_rom_path;
+        if (self.file_dialog_cancelled) return error.Cancelled;
+
+        return self.file_rom_path[0..self.file_rom_path_len];
     }
 
     fn sdlPanic() noreturn {
@@ -167,14 +173,15 @@ pub const Window = struct {
         _ = filter;
         const self: *Window = @ptrCast(@alignCast(userdata));
 
-        if (filelist == null) {
-            std.debug.print("Error or cancelled: {s}\n", .{SDL.SDL_GetError()});
+        if (filelist == null or filelist[0] == null) {
+            std.debug.print("Error or cancelled\n", .{});
+            self.file_dialog_cancelled = true;
             return;
         }
 
         const path = std.mem.span(filelist[0]);
         @memcpy(self.file_rom_path[0..path.len], path);
+        self.file_rom_path_len = path.len;
         self.file_rom_path[path.len] = 0;
-        std.debug.print("Selected: {s}\n", .{self.file_rom_path});
     }
 };
