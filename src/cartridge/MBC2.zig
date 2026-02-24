@@ -7,7 +7,7 @@ pub const MBC2 = struct {
     rom: []u8,
     ram: []u8,
 
-    rom_bank: u8,
+    rom_bank: u4,
 
     ram_enabled: bool,
 
@@ -37,7 +37,7 @@ pub const MBC2 = struct {
         return switch (addr) {
             0x0000...0x3FFF => self.rom[addr],
             0x4000...0x7FFF => {
-                const ix = addr + ((@as(u16, self.rom_bank) - 1) * 0x4000);
+                const ix = addr + ((@as(u32, self.rom_bank) - 1) * 0x4000);
                 assert(ix < self.rom.len);
                 return self.rom[ix];
             },

@@ -13,12 +13,14 @@ const HEIGHT = 144;
 const CYCLES_PER_FRAME: u64 = 70224;
 
 pub const Window = struct {
-    gb: *Console,
     window: *SDL.SDL_Window,
     renderer: *SDL.SDL_Renderer,
     texture: *SDL.SDL_Texture,
+    file_rom_path: [std.fs.max_path_bytes]u8 = undefined,
+    file_rom_path_len: usize = 0,
+    file_dialog_cancelled: bool = false,
 
-    pub fn init(gb: *Console) Window {
+    pub fn init() Window {
         if (!SDL.SDL_Init(SDL.SDL_INIT_VIDEO)) sdlPanic();
 
         const window = SDL.SDL_CreateWindow(
@@ -39,7 +41,6 @@ pub const Window = struct {
         ) orelse sdlPanic();
 
         return Window{
-            .gb = gb,
             .window = window,
             .renderer = renderer,
             .texture = texture,
@@ -53,7 +54,7 @@ pub const Window = struct {
         SDL.SDL_Quit();
     }
 
-    pub fn run(self: *Window) !void {
+    pub fn run(self: *Window, gb: *Console) !void {
         mainLoop: while (true) {
             const frame_start = SDL.SDL_GetPerformanceCounter();
 
@@ -68,12 +69,12 @@ pub const Window = struct {
                         if (ev.key.scancode == SDL.SDL_SCANCODE_S and !ev.key.repeat) {
                             frame_time_ms = if (frame_time_ms == 16) 4 else 16;
                         } else if (!ev.key.repeat) {
-                            setKey(self.gb.bus.joypad, ev.key.scancode, true);
+                            setKey(gb.bus.joypad, ev.key.scancode, true);
                         }
                     },
 
                     SDL.SDL_EVENT_KEY_UP => {
-                        setKey(self.gb.bus.joypad, ev.key.scancode, false);
+                        setKey(gb.bus.joypad, ev.key.scancode, false);
                     },
 
                     else => {},
@@ -82,13 +83,13 @@ pub const Window = struct {
 
             var frame_cycles: u64 = 0;
             while (frame_cycles < CYCLES_PER_FRAME) {
-                frame_cycles += try self.gb.step() * 4;
+                frame_cycles += try gb.step() * 4;
             }
 
             _ = SDL.SDL_UpdateTexture(
                 self.texture,
                 null,
-                @ptrCast(&self.gb.ppu.display_buffer),
+                @ptrCast(&gb.ppu.display_buffer),
                 WIDTH * @sizeOf(u32),
             );
 
@@ -106,6 +107,29 @@ pub const Window = struct {
                 SDL.SDL_Delay(frame_time_ms - elapsed_ms);
             }
         }
+    }
+
+    pub fn openFileDialog(self: *Window) ![]const u8 {
+        var roms_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const roms_path = std.c.realpath("./roms", &roms_buf);
+
+        SDL.SDL_ShowOpenFileDialog(
+            fileDialogCallback,
+            self,
+            self.window,
+            null,
+            0,
+            roms_path,
+            false,
+        );
+        var ev: SDL.SDL_Event = undefined;
+        while (self.file_rom_path_len == 0 and !self.file_dialog_cancelled) {
+            _ = SDL.SDL_WaitEventTimeout(&ev, 10);
+        }
+
+        if (self.file_dialog_cancelled) return error.Cancelled;
+
+        return self.file_rom_path[0..self.file_rom_path_len];
     }
 
     fn sdlPanic() noreturn {
@@ -146,19 +170,18 @@ pub const Window = struct {
         filelist: [*c]const [*c]const u8,
         filter: c_int,
     ) callconv(.c) void {
-        _ = userdata;
         _ = filter;
+        const self: *Window = @ptrCast(@alignCast(userdata));
 
-        if (filelist == null) {
-            std.debug.print("Error or cancelled: {s}\n", .{SDL.SDL_GetError()});
+        if (filelist == null or filelist[0] == null) {
+            std.debug.print("Error or cancelled\n", .{});
+            self.file_dialog_cancelled = true;
             return;
         }
 
-        // filelist is a null-terminated array of null-terminated strings
-        var i: usize = 0;
-        while (filelist[i] != null) : (i += 1) {
-            const path = std.mem.span(filelist[i]);
-            std.debug.print("Selected: {s}\n", .{path});
-        }
+        const path = std.mem.span(filelist[0]);
+        @memcpy(self.file_rom_path[0..path.len], path);
+        self.file_rom_path_len = path.len;
+        self.file_rom_path[path.len] = 0;
     }
 };
