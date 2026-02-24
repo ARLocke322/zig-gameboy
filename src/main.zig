@@ -19,6 +19,7 @@ const WIDTH = 160;
 const HEIGHT = 144;
 
 pub fn main(init: std.process.Init) !void {
+    var window: Window = .init();
     // Initialise allocator + io
     const allocator: std.mem.Allocator = init.gpa;
     const io: std.Io = init.io;
@@ -26,22 +27,27 @@ pub fn main(init: std.process.Init) !void {
     // var stdout_buffer: [1024]u8 = undefined;
     // var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
     // const stdout = &stdout_writer.interface;
+    var isRelative: bool = true;
 
     // Read Argv for file path
     var args = try init.minimal.args.iterateAllocator(allocator);
     _ = args.skip();
-    const path: []const u8 = args.next() orelse return error.MissingArgs;
+    const path: []const u8 = args.next() orelse blk: {
+        isRelative = false;
+        break :blk try window.openFileDialog();
+    };
+    std.debug.print("path: {s}\n", .{path});
 
     // Allocate buffer to store ROM
     const buffer = try allocator.alloc(u8, 4 * 1024 * 1024);
     defer allocator.free(buffer);
 
     // Load ROM into buffer
-    const rom_buffer = try loadFile(allocator, io, path, buffer);
+    const rom_buffer = try loadFile(allocator, io, path, buffer, isRelative);
     defer allocator.free(rom_buffer);
 
     // Convert ROM path to save path
-    var buf: [256]u8 = undefined;
+    var buf: [std.fs.max_path_bytes]u8 = undefined;
     const save_path: []const u8 = try std.fmt.bufPrint(&buf, "saves/{s}", .{path[4..]});
     @memset(buffer, 0);
 
@@ -67,8 +73,7 @@ pub fn main(init: std.process.Init) !void {
     // Initialise console
     var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu, &ppu);
 
-    var window: Window = .init(&gb);
-    try window.run();
+    try window.run(&gb);
 
     try writeSaveData(io, save_path, cart.save());
     std.debug.print("Game Saved\n", .{});
@@ -91,10 +96,14 @@ fn loadFile(
     io: std.Io,
     path: []const u8,
     buffer: []u8,
+    isRelative: bool,
 ) ![:0]u8 {
     // Open file based on CWD and provided relative path
     const cwd: std.Io.Dir = std.Io.Dir.cwd();
-    const file: std.Io.File = try cwd.openFile(io, path, .{ .mode = .read_only });
+    const file: std.Io.File = if (isRelative)
+        try cwd.openFile(io, path, .{ .mode = .read_only })
+    else
+        std.Io.Dir.openFileAbsoulte(io, path, .{ .mode = .read_only });
     defer file.close(io);
 
     var reader = file.reader(io, buffer);
