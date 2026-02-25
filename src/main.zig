@@ -46,6 +46,7 @@ pub fn main(init: std.process.Init) !void {
 
     // Initialise Cartridge
     var cart = try Cartridge.init(allocator, rom_buffer);
+    const cgb: bool = cart.cgb;
 
     // Load the save data if it exists
     if (save_file_buffer) |s| cart.load(s);
@@ -56,8 +57,8 @@ pub fn main(init: std.process.Init) !void {
     var timer = Timer.init(&interrupt_controller);
     var ppu = Ppu.init(&interrupt_controller);
     var joypad = Joypad.init();
-    var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu, &joypad);
-    var cpu = Cpu.init(&bus, &interrupt_controller);
+    var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu, &joypad, cgb);
+    var cpu = Cpu.init(&bus, &interrupt_controller, cgb);
 
     // Initialise console
     var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu, &ppu);
@@ -66,18 +67,6 @@ pub fn main(init: std.process.Init) !void {
 
     try writeSaveData(io, save_path, cart.save());
     std.debug.print("Game Saved\n", .{});
-
-    //    if (path.len == 0) {
-    //      SDL.SDL_ShowOpenFileDialog(
-    //        fileDialogCallback,
-    //      null,
-    //    window,
-    //  null,
-    // 0,
-    //null,
-    //false,
-    //);
-    //}
 }
 
 fn loadFile(

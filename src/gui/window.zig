@@ -67,7 +67,7 @@ pub const Window = struct {
 
                     SDL.SDL_EVENT_KEY_DOWN => {
                         if (ev.key.scancode == SDL.SDL_SCANCODE_S and !ev.key.repeat) {
-                            frame_time_ms = if (frame_time_ms == 16) 1 else 16;
+                            frame_time_ms = if (frame_time_ms == 16) 4 else 16;
                         } else if (!ev.key.repeat) {
                             setKey(gb.bus.joypad, ev.key.scancode, true);
                         }
