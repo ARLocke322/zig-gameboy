@@ -13,16 +13,20 @@ pub const Cartridge = struct {
     deinitFnPtr: *const fn (ptr: *anyopaque, allocator: std.mem.Allocator) void,
     saveFnPtr: *const fn (ptr: *anyopaque) []u8,
     loadFnPtr: *const fn (ptr: *anyopaque, save_data: []u8) void,
+    cgb: bool,
     allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, data: []const u8) !Cartridge {
         const ram_size: usize = getRamSize(data[0x149]);
         std.debug.print("MBC Bit: {x}\n", .{data[0x147]});
+        const cgb_flag = data[0x143];
+        const cgb: bool = cgb_flag == 0x80 or cgb_flag == 0xC0;
+
         return switch (data[0x147]) {
-            0x00 => initCart(MBC0, allocator, data, ram_size),
-            0x01...0x03 => initCart(MBC1, allocator, data, ram_size),
-            0x05...0x06 => initCart(MBC2, allocator, data, ram_size),
-            0x0F...0x13 => initCart(MBC3, allocator, data, ram_size),
+            0x00 => initCart(MBC0, allocator, data, ram_size, cgb),
+            0x01...0x03 => initCart(MBC1, allocator, data, ram_size, cgb),
+            0x05...0x06 => initCart(MBC2, allocator, data, ram_size, cgb),
+            0x0F...0x13 => initCart(MBC3, allocator, data, ram_size, cgb),
             else => error.UnimplementedCartridge,
         };
     }
@@ -49,7 +53,13 @@ pub const Cartridge = struct {
 
     // --- Private ---
 
-    fn initCart(comptime T: type, allocator: std.mem.Allocator, data: []const u8, ram_size: usize) !Cartridge {
+    fn initCart(
+        comptime T: type,
+        allocator: std.mem.Allocator,
+        data: []const u8,
+        ram_size: usize,
+        cgb: bool,
+    ) !Cartridge {
         const ptr = try allocator.create(T);
         ptr.* = try T.init(allocator, data, ram_size);
         const impl = struct {
@@ -78,6 +88,7 @@ pub const Cartridge = struct {
             .deinitFnPtr = &impl.deinit,
             .saveFnPtr = &impl.save,
             .loadFnPtr = &impl.load,
+            .cgb = cgb,
             .allocator = allocator,
         };
     }

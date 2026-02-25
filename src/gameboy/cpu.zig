@@ -13,6 +13,7 @@ pub const Cpu = struct {
     HL: Register,
     SP: Register,
     PC: Register,
+    KEY1: u8,
 
     mem: *Bus,
 
@@ -23,14 +24,19 @@ pub const Cpu = struct {
 
     halted: bool,
 
-    pub fn init(mem: *Bus, interrupt_controller: *InterruptController) Cpu {
+    pub fn init(
+        mem: *Bus,
+        interrupt_controller: *InterruptController,
+        cgb: bool,
+    ) Cpu {
         return Cpu{
-            .AF = Register.init(0x01B0),
+            .AF = if (cgb) Register.init(0x11B0) else Register.init(0x01B0),
             .BC = Register.init(0x0013),
             .DE = Register.init(0x00D8),
             .HL = Register.init(0x014D),
             .SP = Register.init(0xFFFE),
             .PC = Register.init(0x0100),
+            .KEY1 = 0,
             .mem = mem,
             .IME = false,
             .IME_scheduled = false,
