@@ -2,7 +2,7 @@
 
 A Game Boy emulator written in Zig.
 
-![Demo](demo.gif) 
+![Demo](demo.gif) ![Demo](demo2.gif) 
 
 ## Features
 

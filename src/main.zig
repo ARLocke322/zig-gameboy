@@ -12,12 +12,6 @@ const SDL = @cImport({
     @cInclude("SDL3/SDL.h");
 });
 
-var frame_time_ms: u32 = 16; // ~60 FPS, close enough
-// const frame_time_ms: u32 = 1; // ~60 FPS, close enough
-const SCALE = 4;
-const WIDTH = 160;
-const HEIGHT = 144;
-
 pub fn main(init: std.process.Init) !void {
     var window: Window = .init();
     // Initialise allocator + io
