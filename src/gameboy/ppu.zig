@@ -124,7 +124,7 @@ pub const Ppu = struct {
         }
     }
 
-    pub fn tick(self: *Ppu, cycles: u8) void {
+    pub fn tick(self: *Ppu, cycles: u16) void {
         if ((self.lcd_control & 0x80) == 0) {
             self.set_ppu_mode(2);
             self.ly = 0;

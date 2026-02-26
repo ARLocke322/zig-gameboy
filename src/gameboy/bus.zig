@@ -4,24 +4,38 @@ const Timer = @import("timer.zig").Timer;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
 const Ppu = @import("ppu.zig").Ppu;
 const Joypad = @import("joypad.zig").Joypad;
+const Cpu = @import("cpu.zig").Cpu;
 const assert = std.debug.assert;
 
 pub const Bus = struct {
-    vram: [0x2000]u8, // 0x8000-0x9FFF: 8 KiB VRAM
-    wram_0: [0x1000]u8, // 0xC000-0xCFFF: 4 KiB WRAM
-    wram_n: [0x1000]u8, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
-    hram: [0x7F]u8, // 0xFF80-0xFFFE: HRAM
-    audio_regs: [0x30]u8, // FF10-FF3F
+    vram: [0x2000]u8 = .{0} ** 0x2000, // 0x8000-0x9FFF: 8 KiB VRAM
+    wram_0: [0x1000]u8 = .{0} ** 0x1000, // 0xC000-0xCFFF: 4 KiB WRAM
+    wram_n: [0x1000]u8 = .{0} ** 0x1000, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
+    hram: [0x7F]u8 = .{0} ** 0x7F, // 0xFF80-0xFFFE: HRAM
+    audio_regs: [0x30]u8 = .{0} ** 0x30, // FF10-FF3F
 
-    cgb: bool,
-    wbk: u3,
+    rVDMA_SRC_HIGH: u8 = 0, // HDMA1 etc
+    rVDMA_SRC_LOW: u8 = 0,
+    rVDMA_DEST_HIGH: u8 = 0,
+    rVDMA_DEST_LOW: u8 = 0,
+    rVDMA_LEN: u8 = 0,
+
+    hdma_active: bool = false,
+    hdma_src: u16 = 0,
+    hdma_dest: u16 = 0,
+    hdma_remaining: u16 = 0, // in blocks of 16 bytes
+
+    wbk: u3 = 1,
 
     cartridge: *Cartridge,
     timer: *Timer,
     interrupts: *InterruptController,
     ppu: *Ppu,
-    joypad: *Joypad, // future
+    joypad: *Joypad,
+    cpu: *Cpu = undefined,
     // apu: *APU,        // future
+    cgb: bool,
+    hdma: bool = false,
 
     pub fn init(
         cartridge: *Cartridge,
@@ -32,13 +46,7 @@ pub const Bus = struct {
         cgb: bool,
     ) Bus {
         return Bus{
-            .vram = [_]u8{0} ** 0x2000,
-            .wram_0 = [_]u8{0} ** 0x1000,
-            .wram_n = [_]u8{0} ** 0x1000,
-            .hram = [_]u8{0} ** 0x7F,
-            .audio_regs = [_]u8{0} ** 0x30,
             .cgb = cgb,
-            .wbk = 0x1,
             .cartridge = cartridge,
             .timer = timer,
             .interrupts = interrupts,
@@ -132,8 +140,54 @@ pub const Bus = struct {
             0xFF4C...0xFF4D => {}, // KEY1 KEY2
             0xFF4F => self.ppu.write8(address, value),
             0xFF50 => {}, // Boot ROM mapping control
-            0xFF51...0xFF55 => {}, // vram dma
-            0xFF56 => {}, // IR
+            0xFF51 => {
+                if (self.cgb) self.rVDMA_SRC_HIGH = value;
+            },
+            0xFF52 => {
+                if (self.cgb) self.rVDMA_SRC_LOW = value;
+            },
+            0xFF53 => {
+                if (self.cgb) self.rVDMA_DEST_HIGH = value;
+            },
+            0xFF54 => {
+                if (self.cgb) self.rVDMA_DEST_LOW = value;
+            },
+            0xFF55 => {
+                // initidate rVDMA
+                if (self.cgb) {
+                    const transfer_mode: u1 = @truncate(value >> 7);
+
+                    if (transfer_mode == 0 and self.hdma_active) {
+                        self.hdma_active = false;
+                        return;
+                    }
+
+                    const src_addr: u16 = 0xFFF0 & // bottom 4 bits ignored
+                        ((@as(u16, self.rVDMA_SRC_HIGH) << 8) |
+                            (self.rVDMA_SRC_LOW));
+                    const dest_addr: u16 = 0x1FF0 & // only 12-4 respected
+                        ((@as(u16, self.rVDMA_DEST_HIGH) << 8) |
+                            (self.rVDMA_DEST_LOW));
+
+                    const num_blocks: u16 = @as(u16, value & 0x7F) + 1;
+                    const num_bytes: u16 = num_blocks * 0x10;
+
+                    if (transfer_mode == 0) {
+                        for (0..num_bytes) |i| {
+                            const byte = self.read8(src_addr + @as(u16, @intCast(i)));
+                            self.write8(dest_addr, byte);
+                        }
+
+                        self.cpu.stall_cycles += num_blocks * 32;
+                    } else {
+                        self.hdma_active = true;
+                        self.hdma_src = src_addr;
+                        self.hdma_dest = dest_addr;
+                        self.hdma_remaining = num_blocks;
+                    }
+                }
+            },
+            0xFF56 => {}, // Infrared
             0xFF68...0xFF6C => self.ppu.write8(address, value),
             0xFF70 => {
                 const u3_val: u3 = @truncate(value);
