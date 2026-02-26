@@ -37,7 +37,7 @@ pub const Console = struct {
     pub fn step(
         self: *Console,
         //stdout: *std.Io.Writer,
-    ) !u8 {
+    ) !u16 {
         var cycles: u8 = 1; // minimum tick while halted
         if (self.cpu.IME_scheduled) {
             self.cpu.IME = true;
@@ -57,10 +57,13 @@ pub const Console = struct {
             }
         }
 
-        self.timer.tick(cycles * 4);
-        self.ppu.tick(cycles * 4);
+        const total_cycles = cycles + self.cpu.stall_cycles;
+        self.cpu.stall_cycles = 0;
 
-        self.cycles += cycles;
-        return cycles;
+        self.timer.tick(total_cycles * 4);
+        self.ppu.tick(total_cycles * 4);
+
+        self.cycles += total_cycles;
+        return total_cycles;
     }
 };

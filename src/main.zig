@@ -59,6 +59,7 @@ pub fn main(init: std.process.Init) !void {
     var joypad = Joypad.init();
     var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu, &joypad, cgb);
     var cpu = Cpu.init(&bus, &interrupt_controller, cgb);
+    bus.cpu = &cpu;
 
     // Initialise console
     var gb = Console.init(&interrupt_controller, &timer, &bus, &cpu, &ppu);

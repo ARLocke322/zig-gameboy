@@ -21,6 +21,7 @@ pub const Cpu = struct {
     IME_scheduled: bool,
 
     interrupt_controller: *InterruptController,
+    stall_cycles: u16 = 0,
 
     halted: bool,
 
