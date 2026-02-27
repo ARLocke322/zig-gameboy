@@ -14,17 +14,6 @@ pub const Bus = struct {
     hram: [0x7F]u8 = .{0} ** 0x7F, // 0xFF80-0xFFFE: HRAM
     audio_regs: [0x30]u8 = .{0} ** 0x30, // FF10-FF3F
 
-    rVDMA_SRC_HIGH: u8 = 0, // HDMA1 etc
-    rVDMA_SRC_LOW: u8 = 0,
-    rVDMA_DEST_HIGH: u8 = 0,
-    rVDMA_DEST_LOW: u8 = 0,
-    rVDMA_LEN: u8 = 0,
-
-    hdma_active: bool = false,
-    hdma_src: u16 = 0,
-    hdma_dest: u16 = 0,
-    hdma_remaining: u16 = 0, // in blocks of 16 bytes
-
     wbk: u3 = 1,
 
     cartridge: *Cartridge,
@@ -141,49 +130,49 @@ pub const Bus = struct {
             0xFF4F => self.ppu.write8(address, value),
             0xFF50 => {}, // Boot ROM mapping control
             0xFF51 => {
-                if (self.cgb) self.rVDMA_SRC_HIGH = value;
+                if (self.cgb) self.ppu.rVDMA_SRC_HIGH = value;
             },
             0xFF52 => {
-                if (self.cgb) self.rVDMA_SRC_LOW = value;
+                if (self.cgb) self.ppu.rVDMA_SRC_LOW = value;
             },
             0xFF53 => {
-                if (self.cgb) self.rVDMA_DEST_HIGH = value;
+                if (self.cgb) self.ppu.rVDMA_DEST_HIGH = value;
             },
             0xFF54 => {
-                if (self.cgb) self.rVDMA_DEST_LOW = value;
+                if (self.cgb) self.ppu.rVDMA_DEST_LOW = value;
             },
             0xFF55 => {
                 // initidate rVDMA
                 if (self.cgb) {
                     const transfer_mode: u1 = @truncate(value >> 7);
 
-                    if (transfer_mode == 0 and self.hdma_active) {
-                        self.hdma_active = false;
+                    if (transfer_mode == 0 and self.ppu.hdma_active) {
+                        self.ppu.hdma_active = false;
                         return;
                     }
 
                     const src_addr: u16 = 0xFFF0 & // bottom 4 bits ignored
-                        ((@as(u16, self.rVDMA_SRC_HIGH) << 8) |
-                            (self.rVDMA_SRC_LOW));
+                        ((@as(u16, self.ppu.rVDMA_SRC_HIGH) << 8) |
+                            (self.ppu.rVDMA_SRC_LOW));
                     const dest_addr: u16 = 0x1FF0 & // only 12-4 respected
-                        ((@as(u16, self.rVDMA_DEST_HIGH) << 8) |
-                            (self.rVDMA_DEST_LOW));
+                        ((@as(u16, self.ppu.rVDMA_DEST_HIGH) << 8) |
+                            (self.ppu.rVDMA_DEST_LOW));
 
                     const num_blocks: u16 = @as(u16, value & 0x7F) + 1;
                     const num_bytes: u16 = num_blocks * 0x10;
 
                     if (transfer_mode == 0) {
                         for (0..num_bytes) |i| {
-                            const byte = self.read8(src_addr + @as(u16, @intCast(i)));
-                            self.write8(dest_addr, byte);
+                            const byte = self.ppu.read8(src_addr + @as(u16, @intCast(i)));
+                            self.ppu.write8(dest_addr, byte);
                         }
 
                         self.cpu.stall_cycles += num_blocks * 32;
                     } else {
-                        self.hdma_active = true;
-                        self.hdma_src = src_addr;
-                        self.hdma_dest = dest_addr;
-                        self.hdma_remaining = num_blocks;
+                        self.ppu.hdma_active = true;
+                        self.ppu.hdma_src = src_addr;
+                        self.ppu.hdma_dest = dest_addr;
+                        self.ppu.hdma_remaining = num_blocks;
                     }
                 }
             },

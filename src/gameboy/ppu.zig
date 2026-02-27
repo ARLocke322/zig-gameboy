@@ -1,6 +1,7 @@
 const std = @import("std");
 const assert = std.debug.assert;
 const InterruptController = @import("interrupt_controller.zig").InterruptController;
+const Cpu = @import("cpu.zig").Cpu;
 
 pub const Ppu = struct {
     tile_data: [0x1800]u8, // 8000 - 97FF
@@ -35,6 +36,17 @@ pub const Ppu = struct {
     current_signal: bool = false,
     stat_int_signal: bool = false,
 
+    rVDMA_SRC_HIGH: u8 = 0, // HDMA1 etc
+    rVDMA_SRC_LOW: u8 = 0,
+    rVDMA_DEST_HIGH: u8 = 0,
+    rVDMA_DEST_LOW: u8 = 0,
+    rVDMA_LEN: u8 = 0,
+
+    hdma_active: bool = false,
+    hdma_src: u16 = 0,
+    hdma_dest: u16 = 0,
+    hdma_remaining: u16 = 0, // in blocks of 16 bytes
+    //
     const PALETTE: [4]u32 = .{ 0xFFE0F8D0, 0xFF88C070, 0xFF346856, 0xFF081820 };
 
     pub fn init(interrupt_controller: *InterruptController) Ppu {
@@ -124,7 +136,7 @@ pub const Ppu = struct {
         }
     }
 
-    pub fn tick(self: *Ppu, cycles: u16) void {
+    pub fn tick(self: *Ppu, cpu: *Cpu, cycles: u16) void {
         if ((self.lcd_control & 0x80) == 0) {
             self.set_ppu_mode(2);
             self.ly = 0;
@@ -135,15 +147,18 @@ pub const Ppu = struct {
         self.cycles += cycles;
         const mode: u2 = @truncate(self.stat);
         switch (mode) {
-            0x00 => self.handle_hblank(),
+            0x00 => self.handle_hblank(cpu),
             0x01 => self.handle_vblank(),
             0x02 => self.handle_oam_scan(),
             0x03 => self.handle_render(),
         }
     }
 
-    fn handle_hblank(self: *Ppu) void {
+    fn handle_hblank(self: *Ppu, cpu: *Cpu) void {
         if (self.cycles >= 204) {
+            if (self.hdma_active and self.ly < 144) {
+                self.execute_hdma_block(cpu);
+            }
             self.ly +%= 1;
             self.cycles -= 204;
             if (self.ly == 144) {
@@ -152,6 +167,22 @@ pub const Ppu = struct {
             } else self.set_ppu_mode(2);
 
             self.handle_stat_interrupt();
+        }
+    }
+
+    fn execute_hdma_block(self: *Ppu, cpu: *Cpu) void {
+        for (0..0x10) |i| {
+            const byte = self.read8(self.hdma_src + @as(u16, @intCast(i)));
+            self.write8(self.hdma_dest, byte);
+        }
+
+        self.hdma_src += 0x10;
+        self.hdma_dest += 0x10;
+        self.hdma_remaining -= 1;
+        cpu.stall_cycles += 32;
+
+        if (self.hdma_remaining == 0) {
+            self.hdma_active = false;
         }
     }
 
