@@ -61,7 +61,7 @@ pub const Console = struct {
         self.cpu.stall_cycles = 0;
 
         self.timer.tick(total_cycles * 4);
-        self.ppu.tick(total_cycles * 4);
+        self.ppu.tick(self.cpu, total_cycles * 4);
 
         self.cycles += total_cycles;
         return total_cycles;
