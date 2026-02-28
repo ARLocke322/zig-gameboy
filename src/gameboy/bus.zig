@@ -8,7 +8,6 @@ const Cpu = @import("cpu.zig").Cpu;
 const assert = std.debug.assert;
 
 pub const Bus = struct {
-    vram: [0x2000]u8 = .{0} ** 0x2000, // 0x8000-0x9FFF: 8 KiB VRAM
     wram_0: [0x1000]u8 = .{0} ** 0x1000, // 0xC000-0xCFFF: 4 KiB WRAM
     wram_n: [0x1000]u8 = .{0} ** 0x1000, // 0xD000-0xDFFF: 4 KiB WRAM (switchable in CGB)
     hram: [0x7F]u8 = .{0} ** 0x7F, // 0xFF80-0xFFFE: HRAM
@@ -85,6 +84,8 @@ pub const Bus = struct {
 
             0xFF40...0xFF4B => self.ppu.read8(address),
             0xFF4C...0xFF4D => 0xFF, // KEY CGB
+            0xFF4F => self.ppu.read8(address),
+            0xFF68...0xFF6C => self.ppu.read8(address),
             0xFF70 => @as(u8, self.wbk),
 
             0xFF80...0xFFFE => self.hram[address - 0xFF80],

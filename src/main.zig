@@ -55,7 +55,7 @@ pub fn main(init: std.process.Init) !void {
 
     var interrupt_controller = InterruptController.init();
     var timer = Timer.init(&interrupt_controller);
-    var ppu = Ppu.init(&interrupt_controller);
+    var ppu = Ppu.init(&interrupt_controller, cgb);
     var joypad = Joypad.init();
     var bus = Bus.init(&cart, &timer, &interrupt_controller, &ppu, &joypad, cgb);
     var cpu = Cpu.init(&bus, &interrupt_controller, cgb);
